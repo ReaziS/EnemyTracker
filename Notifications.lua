@@ -10,7 +10,7 @@ local _, ET = ...
 local L = ET.L
 
 local MAX_TOASTS = 4
-local TOAST_W, TOAST_H, GAP = 280, 66, 6
+local TOAST_W, TOAST_H, GAP = 300, 64, 6
 local CLOSE_W = 26
 local SOUND_THROTTLE = 2.0
 local TEST_KEY = "\001test"
@@ -68,7 +68,7 @@ local function attach(t)
     b:SetPoint("BOTTOMRIGHT", t, "BOTTOMRIGHT", -CLOSE_W, 0)
     b:Show()
     t.hint:SetText(L.ALERT_CLICK)
-    t.hint:SetTextColor(0.8, 0.8, 0.8)
+    t.hint:SetTextColor(ET.UI.C.muted[1], ET.UI.C.muted[2], ET.UI.C.muted[3])
     return true
 end
 
@@ -84,13 +84,13 @@ local function refreshHint(t)
     if overlays[t.index] and overlays[t.index]:IsShown() then return end
     if InCombatLockdown() then
         t.hint:SetText(L.ALERT_COMBAT)
-        t.hint:SetTextColor(1, 0.6, 0.2)
+        t.hint:SetTextColor(ET.UI.C.warn[1], ET.UI.C.warn[2], ET.UI.C.warn[3])
     elseif not settings().locked then
         t.hint:SetText(L.UNLOCKED)
-        t.hint:SetTextColor(0.6, 1, 0.6)
+        t.hint:SetTextColor(ET.UI.C.ok[1], ET.UI.C.ok[2], ET.UI.C.ok[3])
     else
         t.hint:SetText(L.ALERT_UNTARGETABLE)
-        t.hint:SetTextColor(0.7, 0.7, 0.7)
+        t.hint:SetTextColor(ET.UI.C.muted[1], ET.UI.C.muted[2], ET.UI.C.muted[3])
     end
 end
 
@@ -105,47 +105,40 @@ local function layout()
 end
 
 local function createToast(i)
-    local t = ET.CreateBackdropFrame("Frame", "EnemyTrackerAlert" .. i, anchor)
+    local UI = ET.UI
+    local t = UI.Frame("Frame", "EnemyTrackerAlert" .. i, anchor)
     t.index = i
     t:SetSize(TOAST_W, TOAST_H)
     t:SetFrameStrata("HIGH")
-    if t.SetBackdropColor then
-        t:SetBackdropColor(0.08, 0.02, 0.02, 0.92)
-        t:SetBackdropBorderColor(0.9, 0.15, 0.15, 1)
-    end
+    UI.Card(t)
     t:EnableMouse(true) -- swallows clicks when no overlay is attached
     t:Hide()
 
     local icon = t:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(44, 44)
-    icon:SetPoint("LEFT", 10, 0)
+    icon:SetSize(40, 40)
+    icon:SetPoint("LEFT", 14, 0)
     icon:SetTexture("Interface\\Icons\\INV_Misc_Bone_HumanSkull_01")
-    icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
     t.icon = icon
 
-    local title = t:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 10, -1)
+    local title = UI.Text(t, "GameFontNormalSmall", "accent")
+    title:SetPoint("TOPLEFT", icon, "TOPRIGHT", 12, 0)
     title:SetPoint("RIGHT", t, "RIGHT", -CLOSE_W, 0)
-    title:SetJustifyH("LEFT")
-    title:SetTextColor(1, 0.25, 0.2)
     title:SetText(L.ALERT_TITLE)
 
-    local name = t:CreateFontString(nil, "OVERLAY", "GameFontHighlightLarge")
-    name:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -2)
+    local name = UI.Text(t, "GameFontHighlightLarge", "text")
+    name:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -3)
     name:SetPoint("RIGHT", t, "RIGHT", -CLOSE_W, 0)
-    name:SetJustifyH("LEFT")
+    name:SetWordWrap(false)
     t.nameText = name
 
-    local hint = t:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    hint:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -2)
+    local hint = UI.Text(t, "GameFontNormalSmall", "muted")
+    hint:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -3)
     hint:SetPoint("RIGHT", t, "RIGHT", -CLOSE_W, 0)
-    hint:SetJustifyH("LEFT")
     t.hint = hint
 
-    local close = CreateFrame("Button", nil, t, "UIPanelCloseButton")
-    close:SetSize(24, 24)
-    close:SetPoint("TOPRIGHT", t, "TOPRIGHT", -1, -1)
-    close:SetScript("OnClick", function() ET:CloseToast(t) end)
+    local close = UI.CloseButton(t, function() ET:CloseToast(t) end)
+    close:SetPoint("TOPRIGHT", t, "TOPRIGHT", -3, -3)
 
     -- Short pulse when shown / re-detected.
     local ag = t:CreateAnimationGroup()
@@ -302,13 +295,11 @@ local function createAnchor()
     anchor:SetClampedToScreen(true)
     anchor:SetFrameStrata("HIGH")
 
-    mover = ET.CreateBackdropFrame("Frame", nil, anchor)
+    mover = ET.UI.Frame("Frame", nil, anchor)
     mover:SetAllPoints(anchor)
     mover:SetFrameLevel(anchor:GetFrameLevel() + 20)
-    if mover.SetBackdropColor then
-        mover:SetBackdropColor(0.1, 0.6, 0.1, 0.5)
-        mover:SetBackdropBorderColor(0.2, 1, 0.2, 1)
-    end
+    local ok = ET.UI.C.ok
+    ET.UI.Paint(mover, { ok[1] * 0.3, ok[2] * 0.3, ok[3] * 0.3, 0.7 }, { ok[1], ok[2], ok[3], 1 })
     local label = mover:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     label:SetPoint("CENTER")
     label:SetText(L.MOVER_ALERTS)
