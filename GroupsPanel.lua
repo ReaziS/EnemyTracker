@@ -64,6 +64,7 @@ local function create()
     frame = ET.CreateBackdropFrame("Frame", "EnemyTrackerGroups", UIParent)
     frame:SetSize(W, H)
     frame:SetFrameStrata("DIALOG")
+    frame:SetToplevel(true) -- a click brings it to the front
     frame:SetMovable(true)
     frame:SetClampedToScreen(true)
     frame:EnableMouse(true)
@@ -141,7 +142,10 @@ local function create()
     joinBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     frame.join = joinBtn
 
-    frame:SetScript("OnShow", refresh)
+    frame:SetScript("OnShow", function(self)
+        self:Raise() -- opened from the dashboard: show it above it
+        refresh()
+    end)
 end
 
 function ET:ToggleGroupsPanel()

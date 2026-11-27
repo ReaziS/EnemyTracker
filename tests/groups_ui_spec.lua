@@ -126,4 +126,17 @@ return {
         eq(env.EnemyTrackerDashboard.descHint:GetText(), ET.L.DESC_HINT)
         ok(ET.L.DESC_HINT:find("personal", 1, true))
     end },
+
+    { "the groups window opens above the dashboard", function()
+        local ET, env = H.boot()
+        ET:ShowDashboard()
+        H.slash(env, "group")
+        local g = env.EnemyTrackerGroups
+        H.slash(env, "group") -- close
+        local raised = false
+        g.Raise = function() raised = true end
+        mock.click(env.EnemyTrackerDashboard.groupsBtn)
+        ok(g:IsShown())
+        ok(raised, "raised on open")
+    end },
 }
