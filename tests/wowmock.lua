@@ -55,12 +55,22 @@ function Widget:RunScript(event, ...)
     for _, h in ipairs(self._hooks[event] or {}) do h(self, ...) end
 end
 
+-- Like the real client: a secure frame cannot be shown, hidden or moved
+-- during combat lockdown (ADDON_ACTION_BLOCKED).
+local function guard(w, what)
+    if w._protected and w._state.combat then
+        error("ADDON_ACTION_BLOCKED: " .. what .. " on protected frame in combat")
+    end
+end
+
 function Widget:Show()
+    guard(self, "Show")
     if self._shown then return end
     self._shown = true
     self:RunScript("OnShow")
 end
 function Widget:Hide()
+    guard(self, "Hide")
     if not self._shown then return end
     self._shown = false
     self:RunScript("OnHide")
@@ -101,8 +111,8 @@ function Widget:SetAttribute(k, v)
 end
 function Widget:GetAttribute(k) return self._attrs[k] end
 
-function Widget:SetPoint(...) self._points[#self._points + 1] = { ... } end
-function Widget:ClearAllPoints() self._points = {} end
+function Widget:SetPoint(...) guard(self, "SetPoint") self._points[#self._points + 1] = { ... } end
+function Widget:ClearAllPoints() guard(self, "ClearAllPoints") self._points = {} end
 function Widget:GetPoint(i)
     local p = self._points[i or 1]
     if p then return unpack(p) end
