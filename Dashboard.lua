@@ -302,6 +302,11 @@ local function create()
     descBox:SetPoint("LEFT", descLabel, "RIGHT", 10, 0)
     descSave = makeButton(frame, L.BTN_SAVE, 90)
     descSave:SetPoint("LEFT", descBox, "RIGHT", 8, 0)
+    -- Descriptions reach the whole group; keep them about play.
+    local descHint = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    descHint:SetPoint("TOPLEFT", descBox, "BOTTOMLEFT", -4, -4)
+    descHint:SetText(L.DESC_HINT)
+    frame.descHint = descHint
     local function saveDescription()
         local e = descKey and ET.db.enemies[descKey]
         if e and ET:SetDescription(e.name, descBox:GetText()) then

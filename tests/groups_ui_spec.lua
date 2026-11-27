@@ -119,4 +119,11 @@ return {
         no(env.EnemyTrackerDashboardCreate:IsEnabled())
         H.noErrors(env)
     end },
+
+    { "the description field reminds what belongs in it", function()
+        local ET, env = H.boot()
+        ET:ShowDashboard()
+        eq(env.EnemyTrackerDashboard.descHint:GetText(), ET.L.DESC_HINT)
+        ok(ET.L.DESC_HINT:find("personal", 1, true))
+    end },
 }
