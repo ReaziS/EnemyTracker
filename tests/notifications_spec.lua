@@ -17,6 +17,16 @@ return {
         eq(b:GetAttribute("macrotext1"), "/targetexact Gorbash Grimfang", "full name incl. surname")
     end },
 
+    { "logs the targeting macro on click when debug logging is on", function()
+        local ET, env = H.boot()
+        ET:AddEnemy("Gorbash Grimfang")
+        ET.db.settings.debug = true
+        H.target(env, enemy("Gorbash Grimfang"))
+        H.mock.click(env.EnemyTrackerTargetButton1, "LeftButton", true)
+        ok(H.chatContains(env, "macro: /targetexact Gorbash Grimfang"), "macro text logged")
+        H.noErrors(env)
+    end },
+
     { "alerts raised in combat are not clickable until combat ends", function()
         local ET, env = H.boot()
         ET:AddEnemy("Gorbash Grimfang")

@@ -44,8 +44,11 @@ local function getOverlay(i)
         GameTooltip:Show()
     end)
     b:SetScript("OnLeave", function() GameTooltip:Hide() end)
-    b:HookScript("PostClick", function(_, button, down)
+    b:HookScript("PostClick", function(self, button, down)
         if button == "RightButton" and not down then ET:CloseToast(toasts[i]) end
+        -- Diagnostics for the in-game targeting check (/et debug).
+        ET:Debug("alert click", button, down and "down" or "up", "macro:", tostring(self:GetAttribute("macrotext1")),
+            "combat:", tostring(InCombatLockdown()))
     end)
     overlays[i] = b
     return b
