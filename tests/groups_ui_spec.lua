@@ -55,6 +55,14 @@ return {
         H.slash(env, "group")
         ET:JoinGroup(GID)
         mock.advance(env, 2)
+        local function infoText()
+            for _, w in ipairs(env._state.widgets) do
+                local t = w._kind == "FontString" and w:GetText()
+                if type(t) == "string" and t:find(ET.L.GROUP_CHECKING_SHORT, 1, true) then return t end
+            end
+        end
+        ok(infoText(), "an unconfirmed group says it is being checked")
+        ET:ConfirmGroup(GID)
         shareIvan(ET, env)
         local info
         for _, w in ipairs(env._state.widgets) do

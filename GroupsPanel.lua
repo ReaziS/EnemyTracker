@@ -2,18 +2,13 @@
 -- and copy a group's ID to give to others.
 local _, ET = ...
 local L = ET.L
+local UI = ET.UI
 
-local W, H = 460, 250
-local SLOT_H = 34
+local W, H = 480, 352
+local PAD = 16
+local CARD_H, CARD_GAP = 56, 8
 
 local frame, slots, joinBox
-
-local function makeButton(parent, text, w, name)
-    local b = CreateFrame("Button", name, parent, "UIPanelButtonTemplate")
-    b:SetSize(w, 22)
-    b:SetText(text)
-    return b
-end
 
 local function recordCount(g)
     local n = 0
@@ -34,6 +29,12 @@ local function sortedIds()
     return ids
 end
 
+local function statusOf(g, rt)
+    if g.verified == false then return UI.Color("warn", L.GROUP_CHECKING_SHORT) end
+    if rt and rt.ready then return UI.Color("ok", L.GROUP_ONLINE) end
+    return UI.Color("warn", L.GROUP_CONNECTING)
+end
+
 local function refresh()
     if not frame or not frame:IsShown() then return end
     local ids = sortedIds()
@@ -45,14 +46,18 @@ local function refresh()
             slot.idBox:SetText(ET.FormatGroupId(id))
             slot.idBox:Show()
             slot.leave:Show()
-            local status = (rt and rt.ready) and ("|cff40ff40" .. L.GROUP_ONLINE .. "|r")
-                or ("|cffffd200" .. L.GROUP_CONNECTING .. "|r")
-            slot.info:SetText(string.format(L.GROUP_SLOT_INFO, status, recordCount(g))
-                .. (g.owner and ("  |cff999999" .. L.GROUP_OWNER .. "|r") or ""))
+            slot.dot:Show()
+            slot.empty:Hide()
+            slot.info:SetText(string.format(L.GROUP_SLOT_INFO, statusOf(g, rt), recordCount(g))
+                .. (g.owner and ("  " .. UI.Color("muted", L.GROUP_OWNER)) or ""))
+            local c = UI.C[(rt and rt.ready and g.verified ~= false) and "ok" or "warn"]
+            slot.dot:SetColorTexture(c[1], c[2], c[3], 1)
         else
             slot.idBox:Hide()
             slot.leave:Hide()
-            slot.info:SetText("|cff666666" .. L.GROUP_SLOT_EMPTY .. "|r")
+            slot.dot:Hide()
+            slot.info:SetText("")
+            slot.empty:Show()
         end
     end
     local full = ET:GroupCount() >= ET.MAX_GROUPS
@@ -60,78 +65,71 @@ local function refresh()
     frame.join:SetEnabled(not full)
 end
 
+local function createSlot(i, y)
+    local slot = {}
+    local card = UI.Frame("Frame", nil, frame)
+    card:SetPoint("TOPLEFT", PAD, y)
+    card:SetPoint("TOPRIGHT", -PAD, y)
+    card:SetHeight(CARD_H)
+    UI.Paint(card, UI.C.surface, UI.C.border)
+
+    -- Read-only box: the ID can be selected and copied with Ctrl+C.
+    local box = UI.EditBox(card, 190, "EnemyTrackerGroupsSlot" .. i .. "Id")
+    box:SetPoint("TOPLEFT", 10, -8)
+    box:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
+    box:SetScript("OnTextChanged", function(self, userInput)
+        if userInput and slot.id then
+            self:SetText(ET.FormatGroupId(slot.id))
+            self:HighlightText()
+        end
+    end)
+    box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
+    slot.idBox = box
+
+    local dot = card:CreateTexture(nil, "ARTWORK")
+    dot:SetSize(6, 6)
+    dot:SetPoint("TOPLEFT", 12, -40)
+    slot.dot = dot
+    local info = UI.Text(card, "GameFontNormalSmall", "muted")
+    info:SetPoint("LEFT", dot, "RIGHT", 6, 0)
+    slot.info = info
+
+    local empty = UI.Text(card, "GameFontNormalSmall", "muted")
+    empty:SetPoint("CENTER")
+    empty:SetText(L.GROUP_SLOT_EMPTY)
+    slot.empty = empty
+
+    local leave = UI.Button(card, L.BTN_LEAVE, 90, "EnemyTrackerGroupsSlot" .. i .. "Leave", "danger")
+    leave:SetPoint("RIGHT", -10, 0)
+    leave:SetScript("OnClick", function() if slot.id then ET:LeaveGroup(slot.id) end end)
+    slot.leave = leave
+    return slot
+end
+
 local function create()
-    frame = ET.CreateBackdropFrame("Frame", "EnemyTrackerGroups", UIParent)
-    frame:SetSize(W, H)
-    frame:SetFrameStrata("DIALOG")
-    frame:SetToplevel(true) -- a click brings it to the front
-    frame:SetMovable(true)
-    frame:SetClampedToScreen(true)
-    frame:EnableMouse(true)
-    frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", frame.StartMoving)
-    frame:SetScript("OnDragStop", frame.StopMovingOrSizing)
-    if frame.SetBackdropColor then frame:SetBackdropColor(0.05, 0.05, 0.05, 0.95) end
+    frame = UI.Window("EnemyTrackerGroups", W, H, L.GROUPS_TITLE)
     frame:SetPoint("CENTER", 0, 60)
-    frame:Hide()
-    tinsert(UISpecialFrames, "EnemyTrackerGroups")
 
-    local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOP", 0, -12)
-    title:SetText(L.GROUPS_TITLE)
-    local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-    close:SetPoint("TOPRIGHT", -4, -4)
-
-    local hint = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    hint:SetPoint("TOPLEFT", 16, -38)
-    hint:SetPoint("TOPRIGHT", -16, -38)
-    hint:SetJustifyH("LEFT")
+    local hint = UI.Text(frame, "GameFontNormalSmall", "muted")
+    hint:SetPoint("TOPLEFT", PAD, -UI.HEADER_H - 12)
+    hint:SetPoint("TOPRIGHT", -PAD, -UI.HEADER_H - 12)
+    hint:SetWordWrap(true)
     hint:SetText(L.GROUPS_HINT)
 
     slots = {}
+    local y = -UI.HEADER_H - 52
     for i = 1, ET.MAX_GROUPS do
-        local slot = {}
-        local y = -66 - (i - 1) * SLOT_H
-        -- Read-only box: the ID can be selected and copied with Ctrl+C.
-        local box = CreateFrame("EditBox", "EnemyTrackerGroupsSlot" .. i .. "Id", frame, "InputBoxTemplate")
-        box:SetSize(150, 20)
-        box:SetAutoFocus(false)
-        box:SetPoint("TOPLEFT", 22, y)
-        box:SetScript("OnEditFocusGained", function(self) self:HighlightText() end)
-        box:SetScript("OnTextChanged", function(self, userInput)
-            if userInput and slot.id then
-                self:SetText(ET.FormatGroupId(slot.id))
-                self:HighlightText()
-            end
-        end)
-        box:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-        box:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
-        slot.idBox = box
-
-        local info = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-        info:SetPoint("TOPLEFT", 182, y - 4)
-        info:SetWidth(170)
-        info:SetJustifyH("LEFT")
-        slot.info = info
-
-        local leave = makeButton(frame, L.BTN_LEAVE, 80, "EnemyTrackerGroupsSlot" .. i .. "Leave")
-        leave:SetPoint("TOPRIGHT", -16, y)
-        leave:SetScript("OnClick", function() if slot.id then ET:LeaveGroup(slot.id) end end)
-        slot.leave = leave
-        slots[i] = slot
+        slots[i] = createSlot(i, y)
+        y = y - CARD_H - CARD_GAP
     end
+    UI.Divider(frame, y - 4, PAD, PAD)
 
-    local createBtn = makeButton(frame, L.BTN_CREATE_GROUP, 140, "EnemyTrackerGroupsCreate")
-    createBtn:SetPoint("BOTTOMLEFT", 16, 18)
-    createBtn:SetScript("OnClick", function() ET:CreateGroup() end)
-    frame.create = createBtn
-
-    joinBox = CreateFrame("EditBox", "EnemyTrackerGroupsJoinBox", frame, "InputBoxTemplate")
-    joinBox:SetSize(150, 20)
-    joinBox:SetAutoFocus(false)
+    y = y - 18
+    joinBox = UI.EditBox(frame, 190, "EnemyTrackerGroupsJoinBox", "ET-XXXX-XXXX-XXXX")
     joinBox:SetMaxLetters(24)
-    joinBox:SetPoint("LEFT", createBtn, "RIGHT", 30, 0)
-    local joinBtn = makeButton(frame, L.BTN_JOIN, 80, "EnemyTrackerGroupsJoin")
+    joinBox:SetPoint("TOPLEFT", PAD, y)
+    local joinBtn = UI.Button(frame, L.BTN_JOIN, 100, "EnemyTrackerGroupsJoin")
     joinBtn:SetPoint("LEFT", joinBox, "RIGHT", 6, 0)
     local function doJoin()
         if ET:JoinGroup(joinBox:GetText()) then joinBox:SetText("") end
@@ -141,6 +139,11 @@ local function create()
     joinBox:SetScript("OnEnterPressed", doJoin)
     joinBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
     frame.join = joinBtn
+
+    local createBtn = UI.Button(frame, L.BTN_CREATE_GROUP, 140, "EnemyTrackerGroupsCreate", "primary")
+    createBtn:SetPoint("TOPRIGHT", -PAD, y)
+    createBtn:SetScript("OnClick", function() ET:CreateGroup() end)
+    frame.create = createBtn
 
     frame:SetScript("OnShow", function(self)
         self:Raise() -- opened from the dashboard: show it above it
