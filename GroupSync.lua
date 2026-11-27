@@ -60,6 +60,33 @@ local INVALID_MESSAGE = 2                        -- Enum.SendAddonMessageResult.
 local diag = { sent = {}, received = {}, lastResult = {}, unmatched = nil, blocked = 0, dropped = 0 }
 ET.groupDiag = diag
 
+-- Members we heard from: id -> { sender key -> GetTime() }. Every online
+-- member checks in at least every RESYNC_EVERY seconds, so whoever was heard
+-- within ONLINE_WINDOW is online with the addon. The chat channel's own
+-- member count is not used: Forever reports it unreliably.
+local heard = {}
+local ONLINE_WINDOW = 660
+
+function ET:GroupOnlineCount(id)
+    local n, now = 0, GetTime()
+    for _, t in pairs(heard[id] or {}) do
+        if now - t <= ONLINE_WINDOW then n = n + 1 end
+    end
+    return n
+end
+
+local function markHeard(id, senderKey)
+    local h = heard[id]
+    if not h then h = {} heard[id] = h end
+    local fresh = not h[senderKey] or GetTime() - h[senderKey] > ONLINE_WINDOW
+    h[senderKey] = GetTime()
+    if fresh then ET:Fire("GROUP_MEMBERS_CHANGED", id) end
+end
+
+ET:On("GROUPS_CHANGED", function(id, what)
+    if what == "leave" then heard[id] = nil end
+end)
+
 local function succeeded(result)
     return result == nil or result == true or result == 0
 end
@@ -537,6 +564,7 @@ function ET:OnGroupMessage(prefix, text, channel, sender, target, _, localID, ch
     local kind = body:sub(1, 1)
     local handler = handlers[kind]
     if not handler then return end
+    markHeard(id, senderKey)
     if CONFIRMS[kind] then ET:ConfirmGroup(id) end
     -- While we are still checking the group, we have nothing to answer with.
     if ET.db.groups[id].verified == false and (kind == "W" or kind == "Q") then return end

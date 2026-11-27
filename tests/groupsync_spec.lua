@@ -605,4 +605,23 @@ return {
         mock.mesh(envs(a, b), 2)
         no(rec(a, "ivan petrov").del, "the later adder only removes them for themselves")
     end },
+
+    { "counts members heard from, not listed players; quiet ones drop off", function()
+        math.randomseed(16)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        for _, n in ipairs({ "Ivan", "Olga", "Petr", "Vera", "Gleb", "Lida", "Oleg", "Rita", "Yuri" }) do
+            a.ET:AddEnemy(n .. " Petrov")
+        end
+        found(a)
+        mock.mesh(envs(a), 5)
+        eq(a.ET:GroupOnlineCount(GID), 0, "alone: nobody online, though 9 players are listed")
+        b.ET:JoinGroup(GID)
+        mock.mesh(envs(a, b), 30)
+        eq(a.ET:GroupOnlineCount(GID), 1, "B is online")
+        eq(b.ET:GroupOnlineCount(GID), 1, "A is online")
+        mock.mesh(envs(a), 700) -- B went offline
+        eq(a.ET:GroupOnlineCount(GID), 0, "B dropped off")
+        a.ET:LeaveGroup(GID)
+        eq(a.ET:GroupOnlineCount(GID), 0)
+    end },
 }

@@ -48,7 +48,7 @@ local function refresh()
             slot.leave:Show()
             slot.dot:Show()
             slot.empty:Hide()
-            slot.info:SetText(string.format(L.GROUP_SLOT_INFO, statusOf(g, rt), recordCount(g))
+            slot.info:SetText(string.format(L.GROUP_SLOT_INFO, statusOf(g, rt), recordCount(g), ET:GroupOnlineCount(id))
                 .. (g.owner and ("  " .. UI.Color("muted", L.GROUP_OWNER)) or ""))
             local c = UI.C[(rt and rt.ready and g.verified ~= false) and "ok" or "warn"]
             slot.dot:SetColorTexture(c[1], c[2], c[3], 1)
@@ -104,6 +104,9 @@ local function createSlot(i, y)
     leave:SetPoint("RIGHT", -10, 0)
     leave:SetScript("OnClick", function() if slot.id then ET:LeaveGroup(slot.id) end end)
     slot.leave = leave
+    info:SetPoint("RIGHT", leave, "LEFT", -8, 0)
+    info:SetJustifyH("LEFT")
+    if info.SetWordWrap then info:SetWordWrap(false) end
     return slot
 end
 
@@ -159,3 +162,4 @@ end
 ET:On("GROUPS_CHANGED", refresh)
 ET:On("GROUP_READY", refresh)
 ET:On("SHARED_CHANGED", refresh)
+ET:On("GROUP_MEMBERS_CHANGED", refresh)

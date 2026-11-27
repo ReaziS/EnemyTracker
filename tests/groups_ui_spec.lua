@@ -70,7 +70,8 @@ return {
             if type(t) == "string" and t:find(ET.L.GROUP_ONLINE, 1, true) then info = t end
         end
         ok(info, "status line")
-        ok(info:find("1", 1, true), "player count")
+        ok(info:find(": 1 ", 1, true), "listed player count")
+        ok(info:find(": 0$"), "nobody else online")
     end },
 
     { "the dashboard lists shared players and can adopt one", function()

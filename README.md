@@ -21,7 +21,7 @@ Turn on **enemy nameplates** (`V`, or Options > Interface > Names). Nameplates a
 | `/et clear First Surname` | Reset kill stats, after confirmation. The player stays in the list and "last seen" is kept |
 | `/et note First Surname [text]` | Set the player's description (one per player, up to 200 characters); no text clears it. Also editable in the dashboard |
 | `/et list` | Print the blacklist |
-| `/et group` | Open the groups window (also the Groups button in the dashboard). The dashboard also has a Group ID box with Join and Create group buttons |
+| `/et group` | Open the groups window (also the Groups button in the dashboard). Each group shows its connection state, how many players are on its shared list (listed) and how many members with the addon were heard from in the last 11 minutes (online; every online member checks in every 5 minutes). The dashboard also has a Group ID box with Join and Create group buttons |
 | `/et group create` | Create a shared group and print its ID (`ET-XXXX-XXXX-XXXX`) |
 | `/et group join ID`, `/et group leave ID` | Join or leave a group by ID (any case, dashes and spaces optional) |
 | `/et group list` | Print your groups and their state |
