@@ -53,8 +53,10 @@ function ET:HandleSlash(msg)
             self:JoinGroup(arg)
         elseif sub == "leave" and arg ~= "" then
             self:LeaveGroup(arg)
-        else
+        elseif sub == "list" then
             self:PrintGroups()
+        else
+            self:ToggleGroupsPanel()
         end
     elseif cmd == "clear" then
         if rest ~= "" then self:ConfirmClear(rest) else printHelp() end

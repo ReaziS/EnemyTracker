@@ -39,6 +39,12 @@ local function rebuildData()
             data[#data + 1] = { key = key, e = e }
         end
     end
+    -- Players shared by groups, listed with the player's own.
+    for key, e in pairs(ET.sharedView) do
+        if filter == "" or key:find(filter, 1, true) then
+            data[#data + 1] = { key = key, e = e, shared = true }
+        end
+    end
     table.sort(data, function(a, b)
         local va, vb = valueOf(a.e, sortKey), valueOf(b.e, sortKey)
         if sortKey == "name" then va, vb = a.key, b.key end
@@ -62,12 +68,15 @@ local function updateRows()
         if item then
             local e = item.e
             row.key = item.key
-            row.cols.name:SetText(e.needsSurname and (e.name .. " |cff999999" .. L.NO_SURNAME .. "|r") or e.name)
+            local label = e.name
+            if e.needsSurname then label = label .. " |cff999999" .. L.NO_SURNAME .. "|r"
+            elseif item.shared then label = "|cff6fa8dc" .. label .. "|r" end
+            row.cols.name:SetText(label)
             row.cols.killedMe:SetText(e.stats.killedMe)
             row.cols.iKilled:SetText(e.stats.iKilled)
             local seen = ET.nearby[item.key] and ("|cff40ff40" .. L.JUST_NOW .. "|r") or ET.FormatAgo(e.lastSeen)
             row.cols.lastSeen:SetText(seen)
-            row.cols.addedAt:SetText(ET.FormatDate(e.addedAt))
+            row.cols.addedAt:SetText(item.shared and ("|cff6fa8dc" .. L.FROM_GROUP .. "|r") or ET.FormatDate(e.addedAt))
             row.cols.detections:SetText(e.stats.detections)
             row.sel:SetShown(item.key == selectedKey)
             row:Show()
@@ -76,16 +85,22 @@ local function updateRows()
             row:Hide()
         end
     end
-    totalText:SetFormattedText(L.TOTAL, ET:EnemyCount(), #data)
+    local shared = 0
+    for _ in pairs(ET.sharedView) do shared = shared + 1 end
+    totalText:SetFormattedText(L.TOTAL_SHARED, ET:EnemyCount(), shared, #data)
     local hasSel = selectedKey and ET.db.enemies[selectedKey] ~= nil
+    local sharedSel = selectedKey and not hasSel and ET.sharedView[selectedKey] ~= nil
     clearBtn:SetEnabled(hasSel and true or false)
-    removeBtn:SetEnabled(hasSel and true or false)
+    -- For a shared player the button adds them to the player's own list.
+    removeBtn:SetText(sharedSel and L.BTN_ADD_TO_MINE or L.BTN_REMOVE)
+    removeBtn:SetEnabled((hasSel or sharedSel) and true or false)
     scanCheck:SetChecked(ET.db.settings.scanEnabled)
     -- Load the selected player's description, but never overwrite what the
     -- user is typing for the same player.
     if descKey ~= selectedKey then
         descKey = hasSel and selectedKey or nil
-        descBox:SetText(descKey and ET.db.enemies[descKey].description or "")
+        descBox:SetText(descKey and ET.db.enemies[descKey].description
+            or (sharedSel and ET.sharedView[selectedKey].description) or "")
         descBox:ClearFocus()
     end
     descBox:SetEnabled(hasSel and true or false)
@@ -94,7 +109,7 @@ end
 
 local function refresh()
     if not frame or not frame:IsShown() then return end
-    if selectedKey and not ET.db.enemies[selectedKey] then selectedKey = nil end
+    if selectedKey and not ET:GetTracked(selectedKey) then selectedKey = nil end
     rebuildData()
     updateRows()
 end
@@ -137,6 +152,11 @@ local function create()
 
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -4, -4)
+
+    local groupsBtn = makeButton(frame, L.BTN_GROUPS, 90)
+    groupsBtn:SetPoint("TOPLEFT", 12, -10)
+    groupsBtn:SetScript("OnClick", function() ET:ToggleGroupsPanel() end)
+    frame.groupsBtn = groupsBtn
 
     -- Search
     local searchLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -218,11 +238,16 @@ local function create()
             updateRows()
         end)
         row:SetScript("OnEnter", function(self)
-            local e = self.key and ET.db.enemies[self.key]
-            if not e or e.description == "" then return end
+            local e = self.key and ET:GetTracked(self.key)
+            if not e then return end
+            local desc = ET:DescriptionOf(self.key)
+            if desc == "" and not e.shared then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:AddLine(e.name, 1, 0.3, 0.3)
-            GameTooltip:AddLine(ET.EscapeText(e.description), 1, 1, 1, true)
+            if desc ~= "" then GameTooltip:AddLine(ET.EscapeText(desc), 1, 1, 1, true) end
+            if e.shared then
+                GameTooltip:AddLine(string.format(L.SHARED_BY, e.by or "?"), 0.44, 0.66, 0.86)
+            end
             GameTooltip:Show()
         end)
         row:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -280,7 +305,9 @@ local function create()
     removeBtn:SetPoint("LEFT", clearBtn, "RIGHT", 8, 0)
     removeBtn:SetScript("OnClick", function()
         local e = selectedKey and ET.db.enemies[selectedKey]
-        if e then ET:ConfirmRemove(e.name) end
+        if e then ET:ConfirmRemove(e.name) return end
+        local v = selectedKey and ET.sharedView[selectedKey]
+        if v and ET:AddEnemy(v.name) then ET.db.enemies[selectedKey].faction = v.faction end
     end)
 
     scanCheck = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
@@ -322,6 +349,7 @@ ET:On("DB_READY", function()
 end)
 ET:On("BLACKLIST_CHANGED", refresh)
 ET:On("NEARBY_CHANGED", refresh)
+ET:On("SHARED_CHANGED", refresh)
 ET:On("SETTINGS_CHANGED", refresh)
 ET:On("POSITIONS_RESET", function()
     ET.db.positions.dashboard = {}

@@ -90,12 +90,12 @@ return {
         eq(type(ET.db.groups["7KQMX2PV9HRT"].records), "table")
     end },
 
-    { "lists groups with /et group", function()
+    { "lists groups with /et group list", function()
         local ET, env = H.boot()
-        H.slash(env, "group")
+        H.slash(env, "group list")
         ok(H.chatContains(env, "/et group create"))
         local id = ET:CreateGroup()
-        H.slash(env, "group")
+        H.slash(env, "group list")
         ok(H.lastChat(env):find(ET.FormatGroupId(id), 1, true))
         H.noErrors(env)
     end },
