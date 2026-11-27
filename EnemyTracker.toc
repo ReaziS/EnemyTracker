@@ -1,0 +1,21 @@
+## Interface: 16001
+## Title: Enemy Tracker
+## Notes: Personal blacklist of players: nearby detection, RareScanner-style alerts, kill statistics.
+## Notes-ruRU: Личный чёрный список игроков: обнаружение поблизости, уведомления в стиле RareScanner, статистика убийств.
+## Version: 0.1.1
+## SavedVariables: EnemyTrackerDB
+## IconTexture: Interface\Icons\INV_Misc_Bone_HumanSkull_01
+
+Core.lua
+Locale.lua
+Database.lua
+Sound.lua
+Detection.lua
+Stats.lua
+Notifications.lua
+Counter.lua
+Dashboard.lua
+MinimapButton.lua
+Options.lua
+ContextMenu.lua
+Slash.lua
