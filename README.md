@@ -31,6 +31,7 @@ Turn on **enemy nameplates** (`V`, or Options > Interface > Names). Nameplates a
 | `/et resetpos` | Reset frame positions |
 | `/et test` | Show a test alert |
 | `/et options` | Open settings (or right-click the minimap button) |
+| `/et lang auto`, `/et lang en`, `/et lang ru` | Addon language: as the game client, English or Russian (also in the options). Messages switch at once; the addon offers a reload so every window follows |
 | `/et debug` | Toggle diagnostic logging |
 
 Settings live under Esc > Options > AddOns > Enemy Tracker. Changes apply immediately and are saved.
@@ -53,7 +54,7 @@ Settings live under Esc > Options > AddOns > Enemy Tracker. Changes apply immedi
 | Stats (§8) | Counts kills each way, last seen, date added and detection count, all starting from when the player was added. The kill rules are below |
 | Dashboard (§9) | Opened from the minimap button (drag it around the minimap edge). Search by name, add by name or target, sortable columns, a virtual-scroll list (fine with hundreds of entries), clear stats or remove with confirmation, and a scanning toggle. Esc closes it |
 | Shared groups | See the section below |
-| Modules (§11) | `Core` (events, utilities), `Database`, `Detection`, `Stats`, `Sound`, `Notifications`, `DescriptionNote`, `Flags`, `Groups`, `GroupSync`, `SharedList`, `GroupsPanel`, `Counter`, `Dashboard`, `MinimapButton`, `Options`, `ContextMenu`, `Slash`, `Locale` (English and Russian). All event handlers are wrapped in `pcall`, so one error doesn't break the addon |
+| Modules (§11) | `Core` (events, utilities), `Database`, `Detection`, `Stats`, `Sound`, `Notifications`, `DescriptionNote`, `Flags`, `Groups`, `GroupSync`, `SharedList`, `GroupsPanel`, `Counter`, `Dashboard`, `MinimapButton`, `Options`, `ContextMenu`, `Slash`, `Locale` (English and Russian, both complete; chosen in the options or with `/et lang`, default: the game client's language). All event handlers are wrapped in `pcall`, so one error doesn't break the addon |
 
 ## Shared groups
 
