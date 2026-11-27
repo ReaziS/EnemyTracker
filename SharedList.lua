@@ -25,6 +25,7 @@ function ET:RebuildShared()
                 v.groups[#v.groups + 1] = id
                 if r.at > v.at then
                     v.at, v.name, v.faction, v.description, v.by = r.at, r.name, r.faction, r.description or "", r.by
+                    v.owner = r.owner or r.by
                 end
             end
         end

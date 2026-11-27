@@ -82,6 +82,17 @@ local CODE_FACTION = { A = "Alliance", H = "Horde" }
 -------------------------------------------------------------------------------
 local function myName() return ET.PlayerName("player") or "" end
 
+local function isMe(name)
+    local mine = ET.NameKey(myName())
+    return mine ~= nil and ET.NameKey(name) == mine
+end
+
+-- Who added the player to the group. Records from older versions have no
+-- owner field; their author counts as the adder.
+local function ownerOf(rec) return rec.owner or rec.by end
+-- When the record was first put into the group (older records: their time).
+local function firstOf(rec) return rec.first or rec.at end
+
 local function hash(s)
     local h = 5381
     for i = 1, #s do h = (h * 33 + s:byte(i)) % 2147483647 end
@@ -93,7 +104,10 @@ function ET:GroupDigest(id)
     local n, sum = 0, 0
     for key, r in pairs(g and g.records or {}) do
         n = n + 1
-        sum = (sum + hash(key .. SEP .. r.at .. SEP .. (r.del and 1 or 0) .. SEP .. (r.description or ""))) % 2147483647
+        -- Who owns the record counts too, so copies that agree on the content
+        -- but not on the owner still sync.
+        sum = (sum + hash(key .. SEP .. r.at .. SEP .. (r.del and 1 or 0) .. SEP .. (r.description or "")
+            .. SEP .. (ownerOf(r) or "") .. SEP .. firstOf(r))) % 2147483647
     end
     return n .. ":" .. sum
 end
@@ -130,11 +144,30 @@ local function newer(a, b) -- is record a newer than b?
 end
 
 -- Merges a record into the group's copy. Returns true if it changed.
+--
+-- The newest change wins the content (name, faction, description, removal).
+-- Ownership does not follow it: when two members added the same player
+-- independently, whoever added them first stays the owner, decided the same
+-- way on every client so all copies agree.
 function ET:MergeGroupRecord(id, key, rec)
     local g = self.db.groups[id]
     if not g then return false end
     local cur = g.records[key]
-    if cur and not newer(rec, cur) then return false end
+    rec.first = firstOf(rec)
+    if cur and not cur.del and not rec.del then
+        local cf, rf = firstOf(cur), rec.first
+        local older = (cf < rf or (cf == rf and (ownerOf(cur) or "") <= (ownerOf(rec) or ""))) and cur or rec
+        if newer(rec, cur) then
+            rec.owner, rec.first = ownerOf(older), firstOf(older)
+        else
+            if older == cur then return false end
+            cur.owner, cur.first = ownerOf(rec), rec.first -- only the ownership comes in
+            self:Fire("GROUP_RECORDS_CHANGED", id, key)
+            return true
+        end
+    elseif cur and not newer(rec, cur) then
+        return false
+    end
     if not cur then
         local n = 0
         for _ in pairs(g.records) do n = n + 1 end
@@ -155,20 +188,42 @@ function ET.ChangeTime(cur)
     return cur and cur.at >= now and cur.at + 1 or now
 end
 
--- Publishes one of our own blacklist entries into a group. With isEdit the
--- change is stamped now; otherwise with when we added the player, so
--- re-sharing on login never overrides a newer change by someone else. An
--- empty description of ours never replaces a member's non-empty one: adding
--- a player someone already described keeps their text. Returns true if the
--- group's copy changed.
-local function publishOwn(id, key, entry, isEdit)
+-- Publishes one of our own blacklist entries into a group. Returns true if
+-- the group's copy changed.
+--
+-- A player the group already has stays with whoever added them (owner): we
+-- only send what is new, never taking the record over: our description when
+-- we edit it or the group has none, or a faction the record lacks. Only the
+-- owner's removal removes a player from the group. Text in the group is
+-- cleared only by explicitly clearing the description we wrote ourselves.
+--
+-- A new player is stamped now when we just added or edited them (isEdit);
+-- when re-sharing on login, with when we added them, so a removal made since
+-- by the group is not undone.
+local function publishOwn(id, key, entry, isEdit, clearing)
     if entry.needsSurname or not ET.IsValidName(entry.name) then return false end
     local cur = ET.db.groups[id].records[key]
     local desc = entry.description or ""
-    if desc == "" and cur and not cur.del and cur.description ~= "" and cur.by ~= myName() then return false end
+    local faction = FACTION_CODE[entry.faction or ""] and entry.faction or nil
+    if cur and not cur.del then
+        local theirs = cur.description or ""
+        local newDesc
+        if desc == "" then
+            newDesc = clearing and theirs ~= "" and isMe(cur.by)
+        else
+            newDesc = desc ~= theirs and (isEdit or theirs == "")
+        end
+        local newFaction = faction ~= nil and cur.faction == nil
+        if not (newDesc or newFaction) then return false end
+        return ET:MergeGroupRecord(id, key, {
+            name = cur.name, faction = cur.faction or faction,
+            description = newDesc and desc or (cur.description or ""),
+            at = ET.ChangeTime(cur), by = myName(), owner = ownerOf(cur), first = firstOf(cur),
+        })
+    end
     return ET:MergeGroupRecord(id, key, {
-        name = entry.name, faction = FACTION_CODE[entry.faction or ""] and entry.faction or nil,
-        description = desc, at = isEdit and ET.ChangeTime(cur) or entry.addedAt or time(), by = myName(),
+        name = entry.name, faction = faction, description = desc,
+        at = isEdit and ET.ChangeTime(cur) or entry.addedAt or time(), by = myName(), owner = myName(),
     })
 end
 
@@ -272,10 +327,13 @@ local function send(id, body, onSent, bulk)
     if not ticker then ticker = C_Timer.NewTicker(SEND_INTERVAL, sendNext) end
 end
 
+-- "S" records carry who added the player; older versions sent "R" without
+-- it (still read, the author counting as the adder). Older versions ignore
+-- "S", so every member needs this version for the group to sync.
 local function encodeRecord(rec)
-    return "R" .. table.concat({
-        rec.at, rec.del and 1 or 0, FACTION_CODE[rec.faction or ""] or "-", rec.by or "",
-        rec.name, rec.del and "" or (rec.description or ""):gsub("[|%^]", ""),
+    return "S" .. table.concat({
+        rec.at, rec.del and 1 or 0, FACTION_CODE[rec.faction or ""] or "-", rec.by or "", ownerOf(rec) or "",
+        firstOf(rec), rec.name, rec.del and "" or (rec.description or ""):gsub("[|%^]", ""),
     }, SEP)
 end
 
@@ -294,15 +352,26 @@ end
 -- Receiving
 -------------------------------------------------------------------------------
 local function decodeRecord(body)
-    local at, del, fac, by, name, desc = body:match("^R(%d+)%^([01])%^([AH%-])%^([^%^]*)%^([^%^]+)%^(.*)$")
+    local at, del, fac, by, owner, first, name, desc
+    if body:sub(1, 1) == "S" then
+        at, del, fac, by, owner, first, name, desc =
+            body:match("^S(%d+)%^([01])%^([AH%-])%^([^%^]*)%^([^%^]*)%^(%d+)%^([^%^]+)%^(.*)$")
+    else
+        at, del, fac, by, name, desc = body:match("^R(%d+)%^([01])%^([AH%-])%^([^%^]*)%^([^%^]+)%^(.*)$")
+    end
     at = tonumber(at)
     if not at or at < 1e9 or at > time() + FUTURE_SLACK then return nil end
     name = ET.NormalizeName(name)
     if not ET.IsValidName(name) then return nil end
     by = ET.NormalizeName(by)
+    by = ET.IsValidName(by) and ET.DisplayName(by) or nil
+    owner = ET.NormalizeName(owner)
+    owner = ET.IsValidName(owner) and ET.DisplayName(owner) or by
+    first = tonumber(first)
+    if not first or first < 1e9 or first > at then first = at end
     return ET.NameKey(name), {
         name = ET.DisplayName(name), faction = CODE_FACTION[fac], at = at, del = del == "1" or nil,
-        by = ET.IsValidName(by) and ET.DisplayName(by) or nil,
+        by = by, owner = owner, first = first,
         description = del == "1" and "" or cleanDescription(desc),
     }
 end
@@ -320,7 +389,7 @@ local handlers = {}
 
 -- Messages that only a member of an existing group sends: hearing one
 -- confirms a group we are joining.
-local CONFIRMS = { H = true, R = true, B = true, E = true }
+local CONFIRMS = { H = true, R = true, S = true, B = true, E = true }
 
 handlers.W = function(id, sender)
     local rt = runtime[id]
@@ -368,7 +437,7 @@ handlers.B = function(id, sender, body)
     end
 end
 
-handlers.R = function(id, sender, body)
+handlers.R = function(id, sender, body) -- also "S", see below
     local key, rec = decodeRecord(body)
     if not key then
         ET:Debug("group", ET.FormatGroupId(id), "bad record from", sender)
@@ -376,6 +445,7 @@ handlers.R = function(id, sender, body)
     end
     ET:MergeGroupRecord(id, key, rec)
 end
+handlers.S = handlers.R
 
 handlers.E = function(id, sender, body)
     local requester, digest = body:match("^E([^%^]+)%^(.+)$")
@@ -540,12 +610,15 @@ ET:On("BLACKLIST_CHANGED", function(key, what)
         if g.share then
             local changed
             if what == "remove" then
+                -- Only who added the player removes them from the group;
+                -- anyone else only removes them from their own list.
                 local cur = g.records[key]
-                changed = cur and not cur.del and cur.by == myName() and ET:MergeGroupRecord(id, key, {
-                    name = cur.name, faction = cur.faction, description = "", at = ET.ChangeTime(cur), del = true, by = myName(),
+                changed = cur and not cur.del and isMe(ownerOf(cur)) and ET:MergeGroupRecord(id, key, {
+                    name = cur.name, faction = cur.faction, description = "", at = ET.ChangeTime(cur),
+                    del = true, by = myName(), owner = ownerOf(cur), first = firstOf(cur),
                 })
             elseif entry then
-                changed = publishOwn(id, key, entry, true)
+                changed = publishOwn(id, key, entry, true, what == "description")
             end
             if changed then ET:BroadcastRecord(id, key) end
         end

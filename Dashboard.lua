@@ -190,7 +190,7 @@ local function createRow(listFrame, i)
         if own then GameTooltip:AddLine(L.OWN_FACTION, 0.6, 0.6, 0.6, true) end
         if desc ~= "" then GameTooltip:AddLine(ET.EscapeText(desc), 1, 1, 1, true) end
         if e.shared then
-            GameTooltip:AddLine(string.format(L.SHARED_BY, e.by or "?"), UI.C.shared[1], UI.C.shared[2], UI.C.shared[3])
+            GameTooltip:AddLine(string.format(L.SHARED_BY, e.owner or e.by or "?"), UI.C.shared[1], UI.C.shared[2], UI.C.shared[3])
         end
         GameTooltip:Show()
     end)

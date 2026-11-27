@@ -231,7 +231,7 @@ return {
         eq(#a.env._state.addonOut, 0)
         a.env._state.addonResult = nil
         mock.advance(a.env, 1)
-        eq(sentBodies(a.env, "R"), 1, "sent once the throttle clears")
+        eq(sentBodies(a.env, "S"), 1, "sent once the throttle clears")
     end },
 
     { "finds the group by channel number when the name is not given", function()
@@ -289,7 +289,7 @@ return {
         a.env._state.addonRestricted = true
         a.ET:AddEnemy("Ivan Petrov")
         mock.advance(a.env, 1)
-        eq(sentBodies(a.env, "R"), 1)
+        eq(sentBodies(a.env, "S"), 1)
         H.noErrors(a.env)
     end },
 
@@ -304,7 +304,7 @@ return {
         eq(#a.env._state.addonOut, 0)
         a.env._state.addonResult = nil
         mock.advance(a.env, 2)
-        eq(sentBodies(a.env, "R"), 1, "not dropped")
+        eq(sentBodies(a.env, "S"), 1, "not dropped")
     end },
 
     { "sends with logged addon messages, so reported text can be checked", function()
@@ -349,7 +349,7 @@ return {
         c.env._state.addonOut = {}
         c.ET:AddEnemy("Olga Smirnova")
         mock.advance(c.env, 2)
-        eq(sentBodies(c.env, "R"), 1, "refused text goes out unlogged")
+        eq(sentBodies(c.env, "S"), 1, "refused text goes out unlogged")
     end },
 
     { "falls back to plain messages when logged ones are refused on channels", function()
@@ -503,5 +503,106 @@ return {
         count(a.env) count(b.env)
         mock.mesh(envs(a, b), 600)
         ok(sent <= 4, "only the periodic checks, got " .. sent)
+    end },
+
+    { "only the member who added a player removes them from the group, even if another added them too", function()
+        math.randomseed(12)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        found(a) b.ET:JoinGroup(GID)
+        mock.mesh(envs(a, b), 5)
+        a.ET:AddEnemy("Ivan Petrov")
+        mock.mesh(envs(a, b), 2)
+        mock.advance(b.env, 5)
+        b.ET:AddEnemy("Ivan Petrov") -- B adds the same player later
+        mock.mesh(envs(a, b), 2)
+        eq(rec(a, "ivan petrov").owner, "Anna Kova", "still Anna's")
+        eq(rec(b, "ivan petrov").owner, "Anna Kova")
+        b.ET:RemoveEnemy("Ivan Petrov")
+        mock.mesh(envs(a, b), 2)
+        no(rec(a, "ivan petrov").del, "B's removal stays in B's own list")
+        ok(b.ET.sharedView["ivan petrov"], "B sees them again as shared")
+        a.ET:RemoveEnemy("Ivan Petrov")
+        mock.mesh(envs(a, b), 2)
+        ok(rec(b, "ivan petrov").del, "Anna's removal reaches B")
+        no(b.ET.sharedView["ivan petrov"], "gone from B's shared list")
+    end },
+
+    { "the adder still removes a player after another member edited the description", function()
+        math.randomseed(13)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        found(a) b.ET:JoinGroup(GID)
+        mock.mesh(envs(a, b), 5)
+        a.ET:AddEnemy("Ivan Petrov")
+        a.ET:SetDescription("Ivan Petrov", "Ganks lowbies")
+        mock.mesh(envs(a, b), 2)
+        b.ET:AddEnemy("Ivan Petrov")
+        b.ET:SetDescription("Ivan Petrov", "Camps the flight master")
+        mock.mesh(envs(a, b), 2)
+        eq(rec(a, "ivan petrov").description, "Camps the flight master", "the edit is shared")
+        eq(rec(a, "ivan petrov").owner, "Anna Kova", "the edit keeps the adder")
+        a.ET:RemoveEnemy("Ivan Petrov")
+        mock.mesh(envs(a, b), 2)
+        ok(rec(b, "ivan petrov").del, "removed for the group")
+        ok(b.ET.db.enemies["ivan petrov"], "B's own list keeps them")
+    end },
+
+    { "records from older versions count their author as the adder", function()
+        local a = client("Anna", "Kova")
+        found(a)
+        mock.advance(a.env, 2)
+        inject(a, "Bad-Guy", record(a.env.time() - 10, "Ivan Petrov", "old format", false, "Boris Lebed"))
+        eq(rec(a, "ivan petrov").owner, "Boris Lebed")
+    end },
+
+    { "joining shares my description of a player the group has without one", function()
+        math.randomseed(14)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        a.ET:AddEnemy("Ivan Petrov")
+        b.ET:AddEnemy("Ivan Petrov")
+        b.ET:SetDescription("Ivan Petrov", "Ganks lowbies")
+        found(a)
+        mock.mesh(envs(a, b), 2)
+        b.ET:JoinGroup(GID)
+        mock.mesh(envs(a, b), 40)
+        eq(rec(a, "ivan petrov").description, "Ganks lowbies", "B's text reached the group")
+        eq(rec(a, "ivan petrov").owner, "Anna Kova", "still Anna's player")
+    end },
+
+    { "only clearing my own text removes it; adding again with none keeps it", function()
+        math.randomseed(15)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        found(a) b.ET:JoinGroup(GID)
+        mock.mesh(envs(a, b), 5)
+        a.ET:AddEnemy("Ivan Petrov")
+        mock.mesh(envs(a, b), 2)
+        b.ET:AddEnemy("Ivan Petrov")
+        b.ET:SetDescription("Ivan Petrov", "Ganks lowbies")
+        mock.mesh(envs(a, b), 2)
+        b.ET:RemoveEnemy("Ivan Petrov")
+        b.ET:AddEnemy("Ivan Petrov") -- again, with an empty description
+        mock.mesh(envs(a, b), 2)
+        eq(rec(a, "ivan petrov").description, "Ganks lowbies", "re-adding does not wipe it")
+        b.ET:SetDescription("Ivan Petrov", "Ganks lowbies")
+        mock.mesh(envs(a, b), 2)
+        b.ET:SetDescription("Ivan Petrov", "")
+        mock.mesh(envs(a, b), 2)
+        eq(rec(a, "ivan petrov").description, "", "B cleared the text B wrote")
+    end },
+
+    { "members who added the same player separately agree it is the first adder's", function()
+        math.randomseed(16)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        a.ET:AddEnemy("Ivan Petrov")
+        mock.advance(b.env, 30)
+        b.ET:AddEnemy("Ivan Petrov") -- later, before they ever synced
+        found(a)
+        found(b)
+        mock.mesh(envs(a, b), 60)
+        eq(rec(a, "ivan petrov").owner, "Anna Kova")
+        eq(rec(b, "ivan petrov").owner, "Anna Kova")
+        eq(a.ET:GroupDigest(GID), b.ET:GroupDigest(GID), "copies agree")
+        b.ET:RemoveEnemy("Ivan Petrov")
+        mock.mesh(envs(a, b), 2)
+        no(rec(a, "ivan petrov").del, "the later adder only removes them for themselves")
     end },
 }
