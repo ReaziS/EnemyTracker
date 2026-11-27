@@ -30,7 +30,7 @@ local function enabled() return ET.db and ET.db.settings.showFlags end
 local function listedKey(name)
     if ET.IsSecret(name) or type(name) ~= "string" then return nil end
     local key = ET.NameKey(name)
-    return key and ET.db.enemies[key] and key or nil
+    return key and ET:GetTracked(key) and key or nil
 end
 
 function ET.FlagLink(key)
@@ -49,12 +49,12 @@ end
 ET._chatFilter = chatFilter -- for tests
 
 local function showFlagTooltip(owner, key)
-    local e = ET.db.enemies[key]
+    local e = ET:GetTracked(key)
     if not e then return end
+    local desc = ET:DescriptionOf(key)
     GameTooltip:SetOwner(owner, "ANCHOR_CURSOR")
     GameTooltip:AddLine(ET.FLAG .. " " .. e.name, 1, 0.25, 0.25)
-    GameTooltip:AddLine(e.description ~= "" and ET.EscapeText(e.description) or L.FLAG_NO_DESCRIPTION,
-        1, 1, 1, true)
+    GameTooltip:AddLine(desc ~= "" and ET.EscapeText(desc) or L.FLAG_NO_DESCRIPTION, 1, 1, 1, true)
     GameTooltip:Show()
 end
 
@@ -87,9 +87,9 @@ local function onUnitTooltip(tooltip)
     local name = ET.PlayerName(unit)
     local key = name and listedKey(name)
     if not key then return end
-    local e = ET.db.enemies[key]
+    local desc = ET:DescriptionOf(key)
     tooltip:AddLine(ET.FLAG .. " " .. L.FLAG_TOOLTIP, 1, 0.25, 0.25)
-    if e.description ~= "" then tooltip:AddLine(ET.EscapeText(e.description), 1, 1, 1, true) end
+    if desc ~= "" then tooltip:AddLine(ET.EscapeText(desc), 1, 1, 1, true) end
 end
 ET._onUnitTooltip = onUnitTooltip -- for tests
 

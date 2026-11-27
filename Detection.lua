@@ -55,13 +55,13 @@ end
 -- player we know nothing about still raises an alert.
 function ET:IsAlly(key)
     local mine = ET.UnitFaction("player")
-    local d, e = nearby[key], self.db.enemies[key]
+    local d, e = nearby[key], self:GetTracked(key)
     local theirs = (d and d.faction) or (e and not e.needsSurname and e.faction)
     return mine ~= nil and theirs == mine
 end
 
 function ET:MarkSeen(key, seenName, source, faction)
-    local entry = self.db.enemies[key]
+    local entry = self:GetTracked(key)
     if not entry then return end
     local now = GetTime()
     local d = nearby[key]
@@ -99,7 +99,7 @@ function ET:ObserveName(name, source, faction)
     if not scanning() or not name then return end
     local key = ET.NameKey(name)
     if not key then return end
-    if self.db.enemies[key] then
+    if self:GetTracked(key) then
         self:MarkSeen(key, name, source, faction)
         return
     end
@@ -183,7 +183,7 @@ function ET:ExpireNearby()
     local now = GetTime()
     local changed = false
     for key, d in pairs(nearby) do
-        if now - d.lastSeen > LOST_AFTER or not self.db.enemies[key] then
+        if now - d.lastSeen > LOST_AFTER or not self:GetTracked(key) then
             nearby[key] = nil
             changed = true
             self:Debug("lost", d.name)

@@ -156,6 +156,19 @@ function ET:GetEnemyByKey(key)
     return self.db.enemies[key]
 end
 
+-- Player we watch for: our own entry, or one shared by a group we are in.
+function ET:GetTracked(key)
+    return self.db.enemies[key] or (self.sharedView and self.sharedView[key])
+end
+
+-- Description to show: ours, or the newest one a group has if ours is empty.
+function ET:DescriptionOf(key)
+    local e = self:GetTracked(key)
+    if not e then return "" end
+    if e.description ~= "" or not self.SharedDescription then return e.description end
+    return self:SharedDescription(key)
+end
+
 function ET:EnemyCount()
     local n = 0
     for _ in pairs(self.db.enemies) do n = n + 1 end

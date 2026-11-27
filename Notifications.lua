@@ -218,7 +218,7 @@ function ET:CloseToast(t)
     -- Show the next queued alert, skipping players removed meanwhile.
     while #queue > 0 do
         local key = table.remove(queue, 1)
-        local e = key == TEST_KEY and { name = L.TEST_NAME } or self.db.enemies[key]
+        local e = key == TEST_KEY and { name = L.TEST_NAME } or self:GetTracked(key)
         if e and not findToast(key) then
             showToast(key, e.name)
             break

@@ -125,9 +125,10 @@ end)
 
 ET:On("ENEMY_DETECTED", function(key, entry)
     if not S().noteEnabled or ET:IsAlly(key) then return end
-    if entry.description == "" then return end
+    local desc = ET:DescriptionOf(key)
+    if desc == "" then return end
     local d = ET.nearby[key]
-    ET:ShowDescriptionNote(key, d and d.name or entry.name, entry.description)
+    ET:ShowDescriptionNote(key, d and d.name or entry.name, desc)
 end)
 
 ET:On("SETTINGS_CHANGED", function(what)

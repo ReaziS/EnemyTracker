@@ -17,6 +17,7 @@ DescriptionNote.lua
 Flags.lua
 Groups.lua
 GroupSync.lua
+SharedList.lua
 Counter.lua
 Dashboard.lua
 MinimapButton.lua
