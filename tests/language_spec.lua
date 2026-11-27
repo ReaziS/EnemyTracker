@@ -23,6 +23,7 @@ local function openEverything(ET, env)
     ET:TestDescriptionNote()
     env.EnemyTrackerOptionsPanel:RunScript("OnShow")
     H.target(env, { name = "Ivan", surname = "Petrov", faction = "Horde", guid = "Player-ivan" })
+    mock.click(env.EnemyTrackerCounter) -- the nearby list
 end
 
 return {
