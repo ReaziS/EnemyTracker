@@ -21,7 +21,7 @@ Turn on **enemy nameplates** (`V`, or Options > Interface > Names). Nameplates a
 | `/et clear First Surname` | Reset kill stats, after confirmation. The player stays in the list and "last seen" is kept |
 | `/et note First Surname [text]` | Set the player's description (one per player, up to 200 characters); no text clears it. Also editable in the dashboard |
 | `/et list` | Print the blacklist |
-| `/et group` | Open the groups window (also the Groups button in the dashboard) |
+| `/et group` | Open the groups window (also the Groups button in the dashboard). The dashboard also has a Group ID box with Join and Create group buttons |
 | `/et group create` | Create a shared group and print its ID (`ET-XXXX-XXXX-XXXX`) |
 | `/et group join ID`, `/et group leave ID` | Join or leave a group by ID (any case, dashes and spaces optional) |
 | `/et group list` | Print your groups and their state |
@@ -59,6 +59,7 @@ Settings live under Esc > Options > AddOns > Enemy Tracker. Changes apply immedi
 
 A group pools the lists of everyone in it. Create one, give its ID to people you trust, and each of them joins with that ID. You can be in up to 3 groups.
 
+- **Joining checks the group.** The last character of an ID is a check character, so a typo is rejected at once. Since there is no server, a group exists only while someone is in it: after joining, the addon asks the channel who is there, and if no member answers within 15 seconds it prints "group not found: nobody from it is online" and leaves. So you can join only while at least one member is in the game.
 - **No server.** Addons cannot reach the internet, and the project rules out companion programs. A group is a hidden in-game chat channel named after its ID (`ET` + 12 characters); members' addons exchange lists with addon messages on that channel. The channel is removed from every chat window, and groups are rejoined 10 seconds after login so General and Trade keep `/1` and `/2`.
 - **What is shared:** the player's name, faction and description, who changed the record last and when. **Not shared:** kill statistics, last seen, detections. Kills and deaths count only for you.
 - **No duplicates.** Records are keyed by name like your own list, so a player appears once however many members added them, and once across all your groups. Your own entry always wins; if your description is empty, the newest description a group has is shown.
