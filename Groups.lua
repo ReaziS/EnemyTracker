@@ -201,7 +201,8 @@ function ET:PrintGroupDebug()
     end
     if not any then self:Print(L.GROUP_NONE) end
     local blocked = C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown()
-    self:Print(string.format("blocked=%s waits=%d unmatched=%s", tostring(blocked), d.blocked or 0, tostring(d.unmatched)))
+    self:Print(string.format("blocked=%s waits=%d dropped=%d unmatched=%s", tostring(blocked), d.blocked or 0,
+        d.dropped or 0, tostring(d.unmatched)))
 end
 
 function ET:LeaveGroup(input, quiet)

@@ -361,11 +361,26 @@ function M.new(opts)
 
     -- Addon messages: sent ones are recorded; M.mesh delivers them.
     s.addonOut, s.prefixes = {}, {}
+    -- Server flood limit per prefix: 10 messages, then 1 per second; over it
+    -- the send is refused with AddonMessageThrottle (3). Always on, like the
+    -- real server; s.throttleRefusals counts refusals.
+    s.throttleRefusals = 0
+    local budget = {}
+    local function throttled(prefix)
+        local now = env.GetTime()
+        local b = budget[prefix] or { n = 10, t = now }
+        budget[prefix] = b
+        b.n, b.t = math.min(10, b.n + (now - b.t)), now
+        if b.n < 1 then s.throttleRefusals = s.throttleRefusals + 1 return true end
+        b.n = b.n - 1
+        return false
+    end
     env.C_ChatInfo = {
         RegisterAddonMessagePrefix = function(p) s.prefixes[p] = true return true end,
         SendAddonMessage = function(prefix, text, chatType, target)
             assert(#text <= 255, "addon message over 255 bytes")
             if s.addonResult then return s.addonResult end
+            if throttled(prefix) then return 3 end
             s.addonOut[#s.addonOut + 1] = { prefix = prefix, text = text, chatType = chatType, target = target }
             return 0
         end,
@@ -375,6 +390,7 @@ function M.new(opts)
             if s.addonResult then return s.addonResult end
             if s.loggedResult then return s.loggedResult end -- only the logged variant fails
             if text:find("%c") then return 2 end -- InvalidMessage
+            if throttled(prefix) then return 3 end
             s.addonOut[#s.addonOut + 1] = { prefix = prefix, text = text, chatType = chatType, target = target, logged = true }
             return 0
         end,

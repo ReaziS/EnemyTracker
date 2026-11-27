@@ -36,7 +36,11 @@ local _, ET = ...
 local PREFIX = "ETG2"
 local SEP = "^"
 local MAX_MSG = 250                     -- client limit is 255 bytes
-local SEND_INTERVAL = 0.3               -- seconds between our messages
+local SEND_INTERVAL = 0.25              -- how often the queue is looked at
+-- The server allows each prefix a burst of about 10 messages, then one per
+-- second; stay just under it so nothing is refused for flooding.
+local SEND_BURST, SEND_RATE = 8, 0.9    -- messages, messages per second
+local MAX_TRIES = 120                   -- refusals before a message is dropped
 local MAX_RECORDS = 2000                -- per group
 local FUTURE_SLACK = 3600               -- accepted clock skew, seconds
 local TOMBSTONE_TTL = 30 * 86400
@@ -47,11 +51,12 @@ local MUTE_FOR = 300
 local PART_TTL = 30
 local PROBE_TIMEOUT = 15                -- seconds to wait for a member when joining
 local PING_COOLDOWN = 10
-local RETRY_RESULTS = { [3] = true, [8] = true } -- AddonMessageThrottle, ChannelThrottle
+-- AddonMessageThrottle, ChannelThrottle, AddOnMessageLockdown: try again later.
+local RETRY_RESULTS = { [3] = true, [8] = true, [11] = true }
 local INVALID_MESSAGE = 2                        -- Enum.SendAddonMessageResult.InvalidMessage
 
 -- Counters for /et group debug: what was sent, what came back, what was dropped.
-local diag = { sent = {}, received = {}, lastResult = {}, unmatched = nil, blocked = 0 }
+local diag = { sent = {}, received = {}, lastResult = {}, unmatched = nil, blocked = 0, dropped = 0 }
 ET.groupDiag = diag
 
 local function succeeded(result)
@@ -64,6 +69,7 @@ ET.GROUP_PREFIX = PREFIX
 local runtime = ET.groupRuntime
 local queue = {}
 local ticker
+local tokens, tokensAt = SEND_BURST, nil
 local partSeq = 0
 local senders = {}      -- sender key -> { tokens, t, mutedUntil, parts = {} }
 
@@ -170,14 +176,25 @@ end
 -------------------------------------------------------------------------------
 -- Midnight-era clients (Forever included) block outgoing addon messages in
 -- some situations; keep the queue until they are allowed again.
+-- Only the lockdown query is a reliable "not now". AreOutgoingAddonChat-
+-- MessagesRestricted is not: on Forever it answers true all the time while
+-- messages go through, so the send result decides instead.
 local function outgoingBlocked()
-    if C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() then return true end
-    local check = C_ChatInfo.AreOutgoingAddonChatMessagesRestricted
-    if check then
-        local ok, restricted = pcall(check)
-        if ok and restricted and not ET.IsSecret(restricted) then return true end
+    local lockdown = C_ChatInfo.InChatMessagingLockdown
+    if lockdown then
+        local ok, v = pcall(lockdown)
+        if ok and v and not ET.IsSecret(v) then return true end
     end
     return false
+end
+
+local function takeToken()
+    local now = GetTime()
+    tokens = math.min(SEND_BURST, tokens + (now - (tokensAt or now)) * SEND_RATE)
+    tokensAt = now
+    if tokens < 1 then return false end
+    tokens = tokens - 1
+    return true
 end
 
 local function sendNext()
@@ -192,6 +209,7 @@ local function sendNext()
         table.remove(queue, 1)
         return
     end
+    if not takeToken() then return end
     local result
     local logged = C_ChatInfo.SendAddonMessageLogged
     if logged and not item.plain then
@@ -207,8 +225,11 @@ local function sendNext()
     else
         result = C_ChatInfo.SendAddonMessage(PREFIX, item.text, "CHANNEL", tostring(rt.index))
     end
-    if type(result) == "number" and RETRY_RESULTS[result] and item.tries < 5 then
+    if type(result) == "number" and RETRY_RESULTS[result] and item.tries < MAX_TRIES then
+        -- Refused for now: keep it first in line and wait a second.
         item.tries = item.tries + 1
+        diag.lastResult[item.id] = (item.plain and "plain:" or "") .. tostring(result)
+        tokens = 0
         return
     end
     table.remove(queue, 1)
@@ -216,10 +237,15 @@ local function sendNext()
     if succeeded(result) then
         diag.sent[item.id] = (diag.sent[item.id] or 0) + 1
         if item.onSent then item.onSent() end
+    else
+        diag.dropped = diag.dropped + 1
     end
 end
 
-local function send(id, body, onSent)
+-- bulk: part of a whole-list upload. Everything else (questions, answers,
+-- a change just made) goes ahead of queued bulk messages, so a new player
+-- reaches the group at once even while a long list is being sent.
+local function send(id, body, onSent, bulk)
     local texts
     if #body + 1 <= MAX_MSG then
         texts = { "1" .. body }
@@ -231,8 +257,17 @@ local function send(id, body, onSent)
             texts[i] = string.format("P%d:%d:%d:%s", partSeq, i, #chunks, c)
         end
     end
-    for _, t in ipairs(texts) do queue[#queue + 1] = { id = id, text = t, tries = 0 } end
-    queue[#queue].onSent = onSent
+    local at = #queue + 1
+    if not bulk then
+        for i, item in ipairs(queue) do
+            -- Never cut in front of a message that is already being retried.
+            if item.bulk and i > 1 then at = i break end
+        end
+    end
+    for i, t in ipairs(texts) do
+        table.insert(queue, at + i - 1, { id = id, text = t, tries = 0, bulk = bulk,
+            onSent = i == #texts and onSent or nil })
+    end
     if not ticker then ticker = C_Timer.NewTicker(SEND_INTERVAL, sendNext) end
 end
 
@@ -251,7 +286,7 @@ end
 
 local function sendAll(id)
     local g = ET.db.groups[id]
-    for _, rec in pairs(g and g.records or {}) do send(id, encodeRecord(rec)) end
+    for _, rec in pairs(g and g.records or {}) do send(id, encodeRecord(rec), nil, true) end
 end
 
 -------------------------------------------------------------------------------

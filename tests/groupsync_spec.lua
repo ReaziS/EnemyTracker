@@ -279,19 +279,32 @@ return {
         no(b.ET.db.groups[GID])
     end },
 
-    { "holds messages while outgoing addon messages are restricted", function()
+    { "sends although the client reports addon messages as restricted", function()
+        -- On Forever AreOutgoingAddonChatMessagesRestricted() stays true while
+        -- messages go through; waiting on it meant never sending anything.
         local a = client("Anna", "Kova")
         found(a)
         mock.advance(a.env, 2)
         a.env._state.addonOut = {}
         a.env._state.addonRestricted = true
         a.ET:AddEnemy("Ivan Petrov")
-        mock.advance(a.env, 5)
-        eq(#a.env._state.addonOut, 0, "nothing sent while restricted")
-        a.env._state.addonRestricted = false
         mock.advance(a.env, 1)
-        eq(sentBodies(a.env, "R"), 1, "sent once allowed")
+        eq(sentBodies(a.env, "R"), 1)
         H.noErrors(a.env)
+    end },
+
+    { "a message refused by lockdown is kept and sent later", function()
+        local a = client("Anna", "Kova")
+        found(a)
+        mock.advance(a.env, 2)
+        a.env._state.addonOut = {}
+        a.env._state.addonResult = 11 -- AddOnMessageLockdown
+        a.ET:AddEnemy("Ivan Petrov")
+        mock.advance(a.env, 30)
+        eq(#a.env._state.addonOut, 0)
+        a.env._state.addonResult = nil
+        mock.advance(a.env, 2)
+        eq(sentBodies(a.env, "R"), 1, "not dropped")
     end },
 
     { "sends with logged addon messages, so reported text can be checked", function()
@@ -401,5 +414,45 @@ return {
         ok(H.chatContains(b.env, "Forever"), "realm")
         ok(H.chatContains(b.env, "channel ET7KQMX2PV9HRB"), "channel name")
         no(H.chatContains(b.env, "received=0"), "answers were counted")
+    end },
+
+    { "a long list arrives whole despite the server flood limit", function()
+        math.randomseed(7)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        local first = { "Ivan", "Petr", "Olga", "Anna", "Gleb", "Inna", "Oleg", "Vera" }
+        local last = { "Petrov", "Sokol", "Orlov", "Lisin", "Belov", "Popov" }
+        local n = 0
+        for _, f in ipairs(first) do
+            for _, l in ipairs(last) do
+                if a.ET:AddEnemy(f .. " " .. l, true) then n = n + 1 end
+            end
+        end
+        eq(n, 48)
+        found(a)
+        mock.mesh(envs(a, b), 2)
+        b.ET:JoinGroup(GID)
+        mock.mesh(envs(a, b), 90)
+        local got = 0
+        for _, r in pairs(b.ET.db.groups[GID].records) do if not r.del then got = got + 1 end end
+        eq(got, 48, "every record arrived")
+        eq(a.ET.groupDiag.dropped, 0, "nothing dropped")
+        eq(a.env._state.throttleRefusals, 0, "paced under the limit")
+    end },
+
+    { "a player added during a long upload reaches the group at once", function()
+        math.randomseed(8)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        local first = { "Ivan", "Petr", "Olga", "Anna", "Gleb", "Inna", "Oleg", "Vera" }
+        local last = { "Petrov", "Sokol", "Orlov", "Lisin", "Belov", "Popov" }
+        for _, f in ipairs(first) do
+            for _, l in ipairs(last) do a.ET:AddEnemy(f .. " " .. l, true) end
+        end
+        found(a)
+        mock.mesh(envs(a, b), 2)
+        b.ET:JoinGroup(GID)
+        mock.mesh(envs(a, b), 15) -- the upload is under way
+        a.ET:AddEnemy("Zoya Kuznec", true)
+        mock.mesh(envs(a, b), 3)
+        ok(rec(b, "zoya kuznec"), "ahead of the rest of the list")
     end },
 }
