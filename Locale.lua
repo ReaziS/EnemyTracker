@@ -20,8 +20,8 @@ local L = {
 
     ADDED = "%s added to the blacklist.",
     ALREADY = "%s is already in the blacklist.",
-    INVALID_NAME = "Invalid character name: %s",
-    NO_TARGET = "Target a player first (or use /et add Name).",
+    INVALID_NAME = "Invalid character name: \"%s\". Enter the full name: First Surname (2-12 letters each).",
+    NO_TARGET = "Target a player first (or use /et add First Surname).",
     TARGET_NOT_PLAYER = "Your target is not a player.",
     CANT_ADD_SELF = "You cannot add yourself.",
     REMOVED = "%s removed from the blacklist.",
@@ -43,9 +43,9 @@ local L = {
     LIST_EMPTY = "The blacklist is empty.",
 
     HELP = {
-        "/et add [Name] - add player (no name = current target)",
-        "/et remove Name - remove player (asks for confirmation)",
-        "/et clear Name - clear kill statistics of a player",
+        "/et add [First Surname] - add player (no name = current target)",
+        "/et remove First Surname - remove player (asks for confirmation)",
+        "/et clear First Surname - clear kill statistics of a player",
         "/et list - print the blacklist",
         "/et show - open the dashboard",
         "/et on | off | toggle - enable/disable scanning",
@@ -144,8 +144,8 @@ if GetLocale() == "ruRU" then
 
         ADDED = "%s добавлен в чёрный список.",
         ALREADY = "%s уже в чёрном списке.",
-        INVALID_NAME = "Некорректное имя персонажа: %s",
-        NO_TARGET = "Сначала выберите игрока целью (или /et add Имя).",
+        INVALID_NAME = "Некорректное имя персонажа: «%s». Введите полное имя: Имя Фамилия (по 2-12 букв).",
+        NO_TARGET = "Сначала выберите игрока целью (или /et add Имя Фамилия).",
         TARGET_NOT_PLAYER = "Цель не является игроком.",
         CANT_ADD_SELF = "Нельзя добавить самого себя.",
         REMOVED = "%s удалён из чёрного списка.",
@@ -167,9 +167,9 @@ if GetLocale() == "ruRU" then
         LIST_EMPTY = "Чёрный список пуст.",
 
         HELP = {
-            "/et add [Имя] - добавить игрока (без имени - текущая цель)",
-            "/et remove Имя - удалить игрока (с подтверждением)",
-            "/et clear Имя - очистить статистику игрока",
+            "/et add [Имя Фамилия] - добавить игрока (без имени - текущая цель)",
+            "/et remove Имя Фамилия - удалить игрока (с подтверждением)",
+            "/et clear Имя Фамилия - очистить статистику игрока",
             "/et list - вывести чёрный список",
             "/et show - открыть Dashboard",
             "/et on | off | toggle - включить/выключить сканирование",

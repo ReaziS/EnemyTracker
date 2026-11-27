@@ -155,14 +155,27 @@ end
 function ET.Utf8Lower(s) return mapString(s, lowerCp, lowerCp) end
 
 -------------------------------------------------------------------------------
--- Player names. WoW Forever has no realms in names; we still strip a
--- "-Realm" suffix defensively in case one ever appears (e.g. combat log).
+-- Player names. On WoW Forever every character has a first name and a
+-- surname ("Ivan Petrov"); there are no realms. UnitName(unit) returns the
+-- two parts as separate values, some UI text joins them with a hyphen
+-- ("Ivan-Petrov"). Internally a name is always "First Surname".
 -------------------------------------------------------------------------------
 local function trim(s) return (s:gsub("^%s+", ""):gsub("%s+$", "")) end
 ET.Trim = trim
 
-local function stripRealm(name)
-    return (name:gsub("%-.*$", ""))
+local NAME_PART_MIN, NAME_PART_MAX = 2, 12 -- characters per part (Forever rule)
+
+-- Canonical spelling of user input or client text: single spaces,
+-- "First-Surname" turned into "First Surname", any "-Realm" suffix dropped.
+-- Case is left untouched. Returns nil for secret or non-string values.
+function ET.NormalizeName(name)
+    if ET.IsSecret(name) or type(name) ~= "string" then return nil end
+    name = trim(name):gsub("%s+", " ")
+    if not name:find(" ", 1, true) then
+        name = name:gsub("%-", " ", 1)
+    end
+    name = name:gsub("%-.*$", "")
+    return trim(name)
 end
 
 -- Returns lookup key (case-insensitive) or nil if the name is not usable.
@@ -171,7 +184,7 @@ function ET.NameKey(name)
     if ET.IsSecret(name) or type(name) ~= "string" or name == "" then return nil end
     local key = keyCache[name]
     if key then return key end
-    key = ET.Utf8Lower(stripRealm(trim(name)))
+    key = ET.Utf8Lower(ET.NormalizeName(name))
     if key == "" then return nil end
     if keyCacheSize > 1000 then wipe(keyCache); keyCacheSize = 0 end
     keyCache[name] = key
@@ -179,38 +192,56 @@ function ET.NameKey(name)
     return key
 end
 
--- Name of a unit if it exists, is a player, and the client exposes the data
--- as normal (non-secret) values; otherwise nil.
+local function usable(v)
+    return v ~= nil and not ET.IsSecret(v) and type(v) == "string" and v ~= ""
+end
+
+-- Full name ("First Surname") of a unit if it exists, is a player, and the
+-- client exposes the data as normal (non-secret) values; otherwise nil.
 function ET.PlayerName(unit)
     local exists = UnitExists(unit)
     if ET.IsSecret(exists) or not exists then return nil end
     local isPlayer = UnitIsPlayer(unit)
     if ET.IsSecret(isPlayer) or not isPlayer then return nil end
-    local name = UnitName(unit)
-    if ET.IsSecret(name) or type(name) ~= "string" or name == "" or name == (_G.UNKNOWNOBJECT or "Unknown") then
+    local name, surname = UnitName(unit)
+    if not usable(name) or name == (_G.UNKNOWNOBJECT or "Unknown") then
         return nil
     end
+    if usable(surname) then name = name .. " " .. surname end
     return name
 end
 
 function ET.IsSelfName(name)
-    local me = UnitName("player")
-    return me ~= nil and not ET.IsSecret(me) and ET.NameKey(me) == ET.NameKey(name)
+    local me = ET.PlayerName("player")
+    return me ~= nil and ET.NameKey(me) == ET.NameKey(name)
 end
 
--- Display form: first letter upper case, rest lower case (WoW naming rule).
+-- Display form: each part capitalised, rest lower case (Forever naming rule).
 function ET.DisplayName(name)
-    name = stripRealm(trim(name or ""))
-    return mapString(name, upperCp, lowerCp)
+    name = ET.NormalizeName(name) or ""
+    local parts = {}
+    for part in name:gmatch("%S+") do
+        parts[#parts + 1] = mapString(part, upperCp, lowerCp)
+    end
+    return table.concat(parts, " ")
 end
 
--- Character names are a single word without spaces, digits or punctuation.
+local function charCount(s) return #(s:gsub("[\128-\191]", "")) end
+
+-- One name part: 2-12 letters. Non-ASCII characters are accepted as letters
+-- (accented and Cyrillic names); ASCII digits, spaces and punctuation are not.
+local function isValidPart(part)
+    local n = charCount(part)
+    if n < NAME_PART_MIN or n > NAME_PART_MAX then return false end
+    return part:gsub("[\128-\255]", ""):find("^%a*$") ~= nil
+end
+
+-- A character name is exactly two parts: "First Surname".
 function ET.IsValidName(name)
-    if type(name) ~= "string" then return false end
-    name = trim(name)
-    if name == "" or #name > 48 then return false end
-    if name:find("[%s%d%p]") then return false end
-    return true
+    name = ET.NormalizeName(name)
+    if not name then return false end
+    local first, surname = name:match("^(%S+) (%S+)$")
+    return first ~= nil and isValidPart(first) and isValidPart(surname)
 end
 
 -------------------------------------------------------------------------------

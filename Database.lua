@@ -90,9 +90,10 @@ end
 
 -- Adds a player. Returns true on success; prints feedback unless quiet.
 function ET:AddEnemy(name, quiet)
-    name = ET.Trim(name or ""):gsub("%-.*$", "")
+    local input = ET.Trim(type(name) == "string" and name or "")
+    name = ET.NormalizeName(input)
     if not ET.IsValidName(name) then
-        if not quiet then self:Print(string.format(L.INVALID_NAME, name)) end
+        if not quiet then self:Print(string.format(L.INVALID_NAME, input)) end
         return false
     end
     local key = ET.NameKey(name)

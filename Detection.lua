@@ -37,8 +37,9 @@ function ET:MarkSeen(key, seenName, source)
     d.lastSeen = now
     d.source = source
     -- Prefer the client's own spelling/case of the name.
-    if seenName and seenName ~= entry.name and ET.NameKey(seenName) == key then
-        entry.name = ET.DisplayName(seenName)
+    local spelled = ET.NormalizeName(seenName)
+    if spelled and spelled ~= entry.name and ET.NameKey(spelled) == key then
+        entry.name = spelled
     end
     d.name = entry.name
     entry.lastSeen = time()

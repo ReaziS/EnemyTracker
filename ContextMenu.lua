@@ -12,6 +12,13 @@ local function resolveName(contextData)
         name = ET.PlayerName(contextData.unit)
     else
         name = contextData.name
+        -- Chat menus pass the realm field separately; on Forever that slot
+        -- may carry the surname, as UnitName's second return does.
+        local server = contextData.server
+        if type(name) == "string" and not ET.IsSecret(name) and not name:find("[ %-]")
+            and type(server) == "string" and not ET.IsSecret(server) and server ~= "" then
+            name = name .. " " .. server
+        end
     end
     if ET.IsSecret(name) or type(name) ~= "string" or name == "" or ET.IsSelfName(name) then return nil end
     return name
@@ -19,7 +26,7 @@ end
 
 local function build(_, rootDescription, contextData)
     local name = resolveName(contextData)
-    if not name or not ET.IsValidName((name:gsub("%-.*$", ""))) then return end
+    if not name or not ET.IsValidName(name) then return end
     rootDescription:CreateDivider()
     if ET:GetEnemy(name) then
         rootDescription:CreateButton(L.MENU_REMOVE, function() ET:ConfirmRemove(name) end)

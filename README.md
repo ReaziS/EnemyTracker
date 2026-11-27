@@ -14,11 +14,11 @@ Turn on **enemy nameplates** (`V`, or Options > Interface > Names). Nameplates a
 
 | Command | Action |
 |---|---|
-| `/et add Name` | Add a player |
+| `/et add First Surname` | Add a player by full name (also `First-Surname`) |
 | `/et add` | Add your current target (also `/et addtarget`) |
 | Right-click a player | Add to / remove from Enemy Tracker. Works on unit frames, target frame, party/raid frames and names in chat |
-| `/et remove Name` | Remove a player, after confirmation. Deletes their stats too |
-| `/et clear Name` | Reset kill stats, after confirmation. The player stays in the list and "last seen" is kept |
+| `/et remove First Surname` | Remove a player, after confirmation. Deletes their stats too |
+| `/et clear First Surname` | Reset kill stats, after confirmation. The player stays in the list and "last seen" is kept |
 | `/et list` | Print the blacklist |
 | `/et show` | Open or close the dashboard (or left-click the minimap skull) |
 | `/et on`, `/et off`, `/et toggle` | Turn scanning on or off. It's on by default |
@@ -34,7 +34,7 @@ Settings live under Esc > Options > AddOns > Enemy Tracker. Changes apply immedi
 
 | Spec item | Implementation |
 |---|---|
-| Storage (§2.2) | `EnemyTrackerDB` (account-wide SavedVariables). Names are stored without a realm and keyed case-insensitively. Cyrillic and Latin-1 are lower-cased correctly. Duplicates are merged on load |
+| Storage (§2.2) | `EnemyTrackerDB` (account-wide SavedVariables). Names are Forever full names, "First Surname" (each part 2-12 letters), read from both values `UnitName` returns. Keys are case-insensitive with spaces collapsed; `First-Surname` is read as the same name. Cyrillic and Latin-1 are lower-cased correctly. Duplicates are merged on load |
 | Detection (§3.1) | Nameplates (`NAME_PLATE_UNIT_ADDED` plus a scan of `C_NamePlate.GetNamePlates`), target, target-of-target, mouseover, focus, group members' targets (only when `UnitIsVisible`) and nearby combat-log events where a player is the source or target |
 | Frequency (§3.2) | Events, plus one 1-second `C_Timer` ticker. There's no `OnUpdate` scanning. Unit tokens are pre-built, so the ticker creates no new tables. Blacklist lookup is a single hash lookup |
 | De-duplication | A player is counted once across all sources. They count as "lost" after 10 seconds without any source reporting them. If they reappear after that, it's a new detection with a new alert and sound. A shorter gap doesn't re-alert |
