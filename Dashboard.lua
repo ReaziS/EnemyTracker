@@ -23,6 +23,13 @@ local COLUMNS = {
     { id = "detections", label = "COL_DETECTIONS", x = 568, w = 50,  justify = "CENTER" },
 }
 
+local STAT_COLUMN = { killedMe = true, iKilled = true, detections = true }
+
+local function valueOf(e, id)
+    if STAT_COLUMN[id] then return e.stats[id] end
+    return e[id]
+end
+
 local function rebuildData()
     wipe(data)
     local filter = searchBox and ET.Utf8Lower(ET.Trim(searchBox:GetText() or "")) or ""
@@ -32,7 +39,7 @@ local function rebuildData()
         end
     end
     table.sort(data, function(a, b)
-        local va, vb = a.e[sortKey], b.e[sortKey]
+        local va, vb = valueOf(a.e, sortKey), valueOf(b.e, sortKey)
         if sortKey == "name" then va, vb = a.key, b.key end
         va, vb = va or 0, vb or 0
         if va == vb then return a.key < b.key end
@@ -55,12 +62,12 @@ local function updateRows()
             local e = item.e
             row.key = item.key
             row.cols.name:SetText(e.name)
-            row.cols.killedMe:SetText(e.killedMe or 0)
-            row.cols.iKilled:SetText(e.iKilled or 0)
+            row.cols.killedMe:SetText(e.stats.killedMe)
+            row.cols.iKilled:SetText(e.stats.iKilled)
             local seen = ET.nearby[item.key] and ("|cff40ff40" .. L.JUST_NOW .. "|r") or ET.FormatAgo(e.lastSeen)
             row.cols.lastSeen:SetText(seen)
             row.cols.addedAt:SetText(ET.FormatDate(e.addedAt))
-            row.cols.detections:SetText(e.detections or 0)
+            row.cols.detections:SetText(e.stats.detections)
             row.sel:SetShown(item.key == selectedKey)
             row:Show()
         else

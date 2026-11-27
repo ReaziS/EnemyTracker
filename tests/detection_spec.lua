@@ -24,7 +24,7 @@ return {
         H.target(env, enemy("Gorbash Grimfang"))
         H.mock.advance(env, 30)
         eq(#env._state.sounds, 1)
-        eq(ET:GetEnemy("Gorbash Grimfang").detections, 1)
+        eq(ET:GetEnemy("Gorbash Grimfang").stats.detections, 1)
     end },
 
     { "counts a player once when several sources report them", function()
@@ -50,7 +50,7 @@ return {
         eq(ET:NearbyCount(), 0)
         H.target(env, enemy("Gorbash Grimfang"))
         eq(ET:NearbyCount(), 1)
-        eq(ET:GetEnemy("Gorbash Grimfang").detections, 2)
+        eq(ET:GetEnemy("Gorbash Grimfang").stats.detections, 2)
         eq(#env._state.sounds, 2)
     end },
 

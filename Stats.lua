@@ -28,7 +28,7 @@ local function resolveDeath()
     if lethal.key then
         local e = ET.db.enemies[lethal.key]
         if e then
-            e.killedMe = (e.killedMe or 0) + 1
+            e.stats.killedMe = e.stats.killedMe + 1
             ET:Print(string.format(L.KILLED_BY, e.name))
             ET:Fire("BLACKLIST_CHANGED", lethal.key, "stats")
         end
@@ -74,7 +74,7 @@ local function onCombatLog()
             local key = ET.NameKey(dstName)
             local e = key and ET.db.enemies[key]
             if e then
-                e.iKilled = (e.iKilled or 0) + 1
+                e.stats.iKilled = e.stats.iKilled + 1
                 ET:Print(string.format(L.YOU_KILLED, e.name))
                 ET:Fire("BLACKLIST_CHANGED", key, "stats")
             end

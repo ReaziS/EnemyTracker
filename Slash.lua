@@ -10,7 +10,7 @@ end
 local function printList()
     local names = {}
     for _, e in pairs(ET.db.enemies) do
-        names[#names + 1] = string.format("%s (%d/%d, %s)", e.name, e.killedMe or 0, e.iKilled or 0,
+        names[#names + 1] = string.format("%s (%d/%d, %s)", e.name, e.stats.killedMe, e.stats.iKilled,
             ET.FormatAgo(e.lastSeen))
     end
     if #names == 0 then ET:Print(L.LIST_EMPTY) return end

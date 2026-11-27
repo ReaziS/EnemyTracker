@@ -44,7 +44,7 @@ function ET:MarkSeen(key, seenName, source)
     d.name = entry.name
     entry.lastSeen = time()
     if isNew then
-        entry.detections = (entry.detections or 0) + 1
+        entry.stats.detections = entry.stats.detections + 1
         self:Debug("detected", entry.name, "via", source)
         self:Fire("ENEMY_DETECTED", key, entry, source)
         self:Fire("NEARBY_CHANGED")

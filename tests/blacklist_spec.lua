@@ -38,11 +38,11 @@ return {
         local ET, env = H.boot()
         ET:AddEnemy("Gorbash Grimfang")
         local e = ET:GetEnemy("Gorbash Grimfang")
-        e.killedMe, e.iKilled, e.detections, e.lastSeen = 3, 2, 5, 12345
+        e.stats.killedMe, e.stats.iKilled, e.stats.detections, e.lastSeen = 3, 2, 5, 12345
         local added = e.addedAt
         H.slash(env, "clear Gorbash Grimfang")
         H.mock.acceptPopup(env)
-        eq(e.killedMe, 0); eq(e.iKilled, 0); eq(e.detections, 0)
+        eq(e.stats.killedMe, 0); eq(e.stats.iKilled, 0); eq(e.stats.detections, 0)
         eq(e.lastSeen, 12345)
         eq(e.addedAt, added)
         ok(ET:GetEnemy("Gorbash Grimfang"), "still listed")
@@ -63,6 +63,6 @@ return {
         } } })
         eq(ET:EnemyCount(), 1)
         local e = ET:GetEnemy("gorbash grimfang")
-        eq(e.killedMe, 3); eq(e.iKilled, 1); eq(e.addedAt, 40); eq(e.lastSeen, 90)
+        eq(e.stats.killedMe, 3); eq(e.stats.iKilled, 1); eq(e.addedAt, 40); eq(e.lastSeen, 90)
     end },
 }
