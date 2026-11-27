@@ -1,6 +1,6 @@
 # Enemy Tracker (WoW Forever)
 
-Addon for **WoW Forever (Camelot, interface 16001)**. You keep a personal blacklist of players. The addon detects them nearby using only data the client already provides, alerts you with a RareScanner-style toast and a sound, counts how many are nearby right now, and keeps kill statistics for each player. A minimap button opens the dashboard.
+Addon for **WoW Forever (Camelot, interface 16001)**. You keep a personal blacklist of players. The addon detects them nearby using only data the client already provides, alerts you with a RareScanner-style toast and a sound, counts how many are nearby right now, and keeps kill statistics for each player. A minimap button opens the dashboard. Shared groups let friends pool their lists without any server.
 
 **Status (v0.2.0):** checked against a mock of the Forever client API (`tests/`, run under LuaJIT). **Not yet verified in the WoW Forever client.** The spec says a feature isn't done until it's verified in the game, so use the in-game checklist below. Upgrading from v0.1.1 converts the saved data to schema 2; v0.1.1 cannot read it back.
 
@@ -21,6 +21,10 @@ Turn on **enemy nameplates** (`V`, or Options > Interface > Names). Nameplates a
 | `/et clear First Surname` | Reset kill stats, after confirmation. The player stays in the list and "last seen" is kept |
 | `/et note First Surname [text]` | Set the player's description (one per player, up to 200 characters); no text clears it. Also editable in the dashboard |
 | `/et list` | Print the blacklist |
+| `/et group` | Open the groups window (also the Groups button in the dashboard) |
+| `/et group create` | Create a shared group and print its ID (`ET-XXXX-XXXX-XXXX`) |
+| `/et group join ID`, `/et group leave ID` | Join or leave a group by ID (any case, dashes and spaces optional) |
+| `/et group list` | Print your groups and their state |
 | `/et show` | Open or close the dashboard (or left-click the minimap skull) |
 | `/et on`, `/et off`, `/et toggle` | Turn scanning on or off. It's on by default |
 | `/et unlock`, `/et lock` | Move the alert anchor and the counter |
@@ -48,7 +52,20 @@ Settings live under Esc > Options > AddOns > Enemy Tracker. Changes apply immedi
 | Counter (§7) | "Nemeses nearby: N" counts unique blacklisted players detected right now. Clicking it shows who, the source and seconds since they were last seen. It's hidden when the count is 0, unless frames are unlocked |
 | Stats (§8) | Counts kills each way, last seen, date added and detection count, all starting from when the player was added. The kill rules are below |
 | Dashboard (§9) | Opened from the minimap button (drag it around the minimap edge). Search by name, add by name or target, sortable columns, a virtual-scroll list (fine with hundreds of entries), clear stats or remove with confirmation, and a scanning toggle. Esc closes it |
-| Modules (§11) | `Core` (events, utilities), `Database`, `Detection`, `Stats`, `Sound`, `Notifications`, `Counter`, `Dashboard`, `MinimapButton`, `Options`, `ContextMenu`, `Slash`, `Locale` (English and Russian). All event handlers are wrapped in `pcall`, so one error doesn't break the addon |
+| Shared groups | See the section below |
+| Modules (§11) | `Core` (events, utilities), `Database`, `Detection`, `Stats`, `Sound`, `Notifications`, `DescriptionNote`, `Flags`, `Groups`, `GroupSync`, `SharedList`, `GroupsPanel`, `Counter`, `Dashboard`, `MinimapButton`, `Options`, `ContextMenu`, `Slash`, `Locale` (English and Russian). All event handlers are wrapped in `pcall`, so one error doesn't break the addon |
+
+## Shared groups
+
+A group pools the lists of everyone in it. Create one, give its ID to people you trust, and each of them joins with that ID. You can be in up to 3 groups.
+
+- **No server.** Addons cannot reach the internet, and the project rules out companion programs. A group is a hidden in-game chat channel named after its ID (`ET` + 12 characters); members' addons exchange lists with addon messages on that channel. The channel is removed from every chat window, and groups are rejoined 10 seconds after login so General and Trade keep `/1` and `/2`.
+- **What is shared:** the player's name, faction and description, who changed the record last and when. **Not shared:** kill statistics, last seen, detections. Kills and deaths count only for you.
+- **No duplicates.** Records are keyed by name like your own list, so a player appears once however many members added them, and once across all your groups. Your own entry always wins; if your description is empty, the newest description a group has is shown.
+- **Shared players are watched for like your own**: alerts and sound (opposing faction only), corner note, red flag, nearby counter. They are listed in the dashboard in blue, marked "from a group"; "Add to my list" copies one into your own list.
+- **Sync.** When you connect, one online member sends you the group's list and you send back anything they lack; after that every add, description change and removal is sent immediately. Each member keeps a copy, so the list survives while its authors are offline, but you only receive updates while at least one other member is online.
+- **Conflicts:** the latest change wins. An empty description never overwrites a member's text. Removing a player you shared last removes them from the group; removing one someone else shared only removes them from your own list.
+- **Protection** (there is no server to rate-limit, so each client protects itself): a per-sender message budget with a 5-minute mute for flooding, one full-list answer per member per minute, at most 2000 players per group, every field validated (name format, faction, time not in the future) and UI escape codes stripped from descriptions. Group creation is limited by the 3-group cap. IDs are random (about 59 bits), so they cannot be guessed, but **anyone who has the ID can read and edit the group**; there are no admins.
 
 ## Forever restrictions handling
 
@@ -63,7 +80,7 @@ Forever reportedly applies Retail's Midnight addon restrictions. That's a third-
 - **Hidden ("secret") values.** Every unit read goes through `ET.PlayerName()`, which treats secret values from `UnitExists`, `UnitIsPlayer` or `UnitName` as "no data" (using `issecretvalue` when the client has it). Hidden names are never compared or stored. Combat-log events with secret GUIDs or flags are skipped.
 - **Scan ticker.** The 1-second scan catches its own errors. An unexpected client value logs one debug line instead of producing an error popup every second.
 
-The ban-risk review found no feature that breaks Blizzard's published addon policy or EULA. Everything uses the standard addon API, the targeting needs your click, and nothing is sent to other players.
+The ban-risk review found no feature that breaks Blizzard's published addon policy or EULA. Everything uses the standard addon API, and the targeting needs your click. Only shared groups send data, and only to members of your groups, using standard addon messages on a chat channel.
 
 ## Research findings and limitations (§12)
 
@@ -91,6 +108,7 @@ Interface number, Lua version and menu API come from other Forever addons' publi
 9. Scope: data is shared across your account. Statistics count kills by whichever of your characters is logged in.
 10. **Red flag coverage.** Chat and unit tooltips use documented, taint-free hooks. Party/raid frames and the who list are Blizzard frames whose name text is (or may be) a hidden value on Forever; changing them needs in-game verification first, so they are not flagged yet. The chat flag is an `addon:` hyperlink; if a Forever build does not support that link type, clicking it may do nothing.
 11. **Checking that a typed name exists.** Forever has no global player search, and `/who` only lists players of your own faction, so enemies cannot be looked up. A typed name is confirmed only if the client reported that player during this session (units, nameplates, group, chat authors); otherwise the addon asks before adding it. Adding your target or from the right-click menu needs no check.
+12. **Shared groups are unverified on Forever.** They rely on `JoinTemporaryChannel` and `C_ChatInfo.SendAddonMessage` on a `CHANNEL`, which exist in the Forever API dump, but the channel's arguments in `CHAT_MSG_ADDON` and the server's throttling have not been observed in game. Addon messages are paused while the client is in messaging lockdown (e.g. some combat situations). If the client has no free chat channel slot, joining fails with a message.
 
 ## Tests
 
@@ -120,3 +138,6 @@ The mock can't prove rendering, real secure-template behaviour or real event pay
 9. Kill a blacklisted player: "I killed" +1. Get killed by one: "Killed me" +1. Run `/et debug` to see the lethal-hit log lines.
 10. Dashboard: search, sort, clear stats (list entry and "last seen" kept), remove (with confirmation).
 11. With `/et debug` on, check that nothing is logged every frame while idle.
+12. Groups, with a friend: you `/et group create`, they join with the ID. Within ~10 seconds each sees the other's players in the dashboard (blue). `/et debug` logs "group ready" and the channel number. The channel does not appear in chat, and `/1` and `/2` are still General and Trade after a relog.
+13. Add a player and change a description while both are online: the friend sees it within a few seconds. Log out, add someone, log back in: it reaches them after the reconnect.
+14. A shared opposing-faction player comes into range: alert, note and flag as for your own.
