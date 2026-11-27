@@ -89,24 +89,18 @@ Interface number, Lua version and menu API come from other Forever addons' publi
 
 ## Tests
 
+Requires [LuaJIT](https://luajit.org/) (Lua 5.1 compatible, like the game client; on Windows `winget install DEVCOM.LuaJIT`). From the repository root:
+
 ```bash
-cd wow-enemy-tracker && lua tests/run_tests.lua
+luajit tests/run_tests.lua            # all specs
+luajit tests/run_tests.lua detection  # only tests whose name contains "detection"
 ```
 
-`tests/wowmock.lua` mocks the WoW API. The suite covers:
-- adding, de-duplicating and validating names, including Cyrillic and realm suffixes;
-- adding the target and adding from the right-click menu;
-- detection across sources, the grace period and re-detection;
-- no protected calls during combat, overlays reattaching after combat, and the alert queue;
-- every kill-statistics case above;
-- clear and remove, including the confirmation;
-- scanning on and off;
-- settings applied immediately, and the volume read-out;
-- a dashboard with 300 entries;
-- persistence across a reload, including merging duplicates;
-- slash commands.
+- `tests/wowmock.lua` mocks the WoW: Forever client API. It follows what is known about Forever: `UnitName` returns first name and surname, there is no `CombatLogGetCurrentEventInfo`, and `issecretvalue` exists.
+- `tests/harness.lua` boots the addon in a fresh mock environment the way the client does (TOC order, SavedVariables, `ADDON_LOADED`, `PLAYER_LOGIN`) and fails a test if the addon swallowed any error.
+- Each `tests/*_spec.lua` returns a list of `{ "name", function() ... end }`.
 
-It can't prove rendering, real secure-template behaviour or real event payloads.
+The mock can't prove rendering, real secure-template behaviour or real event payloads.
 
 ## In-game acceptance checklist (§14)
 
