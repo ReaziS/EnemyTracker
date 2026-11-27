@@ -99,8 +99,8 @@ return {
             local row = env["EnemyTrackerDashboardRow" .. i]
             seen[row.key] = row.cols.lastSeen:GetText()
         end
-        eq(seen["petr ivanov"], "|cff999999-|r")
-        eq(seen["gorbash grimfang"], ET.L.NEVER)
-        eq(seen["olga smirnova"], ET.L.NEVER, "unknown faction still shows the time")
+        eq(seen["petr ivanov"], ET.UI.Color("muted", "-"))
+        ok(seen["gorbash grimfang"]:find(ET.L.NEVER, 1, true))
+        ok(seen["olga smirnova"]:find(ET.L.NEVER, 1, true), "unknown faction still shows the time")
     end },
 }

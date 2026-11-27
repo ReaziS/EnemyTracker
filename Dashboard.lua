@@ -3,12 +3,15 @@
 -- fast with hundreds of entries.
 local _, ET = ...
 local L = ET.L
+local UI = ET.UI
 
-local W, H = 660, 540
-local ROW_H, VISIBLE_ROWS = 20, 15
+local W, H = 720, 660
+local ROW_H, VISIBLE_ROWS = 22, 15
+local PAD = 16
 
 local frame, rows, slider, searchBox, addBox, totalText, scanCheck
 local clearBtn, removeBtn, descBox, descSave, joinBox, joinBtn, createBtn
+local headers = {}
 local descKey           -- record whose description is in descBox
 local data = {}         -- filtered + sorted entries { key, entry }
 local offset = 0
@@ -16,12 +19,12 @@ local selectedKey
 local sortKey, sortDesc = "lastSeen", true
 
 local COLUMNS = {
-    { id = "name",       label = "COL_NAME",       x = 8,   w = 160, justify = "LEFT" },
-    { id = "killedMe",   label = "COL_KILLED_ME",  x = 170, w = 80,  justify = "CENTER" },
-    { id = "iKilled",    label = "COL_I_KILLED",   x = 252, w = 80,  justify = "CENTER" },
-    { id = "lastSeen",   label = "COL_LAST_SEEN",  x = 334, w = 120, justify = "CENTER" },
-    { id = "addedAt",    label = "COL_ADDED",      x = 456, w = 110, justify = "CENTER" },
-    { id = "detections", label = "COL_DETECTIONS", x = 568, w = 50,  justify = "CENTER" },
+    { id = "name",       label = "COL_NAME",       x = 12,  w = 200, justify = "LEFT" },
+    { id = "killedMe",   label = "COL_KILLED_ME",  x = 216, w = 84,  justify = "CENTER" },
+    { id = "iKilled",    label = "COL_I_KILLED",   x = 302, w = 84,  justify = "CENTER" },
+    { id = "lastSeen",   label = "COL_LAST_SEEN",  x = 388, w = 120, justify = "CENTER" },
+    { id = "addedAt",    label = "COL_ADDED",      x = 510, w = 110, justify = "CENTER" },
+    { id = "detections", label = "COL_DETECTIONS", x = 622, w = 50,  justify = "CENTER" },
 }
 
 local STAT_COLUMN = { killedMe = true, iKilled = true, detections = true }
@@ -29,6 +32,11 @@ local STAT_COLUMN = { killedMe = true, iKilled = true, detections = true }
 local function valueOf(e, id)
     if STAT_COLUMN[id] then return e.stats[id] end
     return e[id]
+end
+
+-- Zero counters are muted so the numbers that matter stand out.
+local function count(n)
+    return n == 0 and UI.Color("muted", "0") or tostring(n)
 end
 
 local function rebuildData()
@@ -55,6 +63,13 @@ local function rebuildData()
     end)
 end
 
+local function updateHeaders()
+    for id, fs in pairs(headers) do
+        local c = UI.C[id == sortKey and "text" or "muted"]
+        fs:SetTextColor(c[1], c[2], c[3])
+    end
+end
+
 local function updateRows()
     if not frame or not frame:IsShown() then return end
     local maxOffset = math.max(0, #data - VISIBLE_ROWS)
@@ -62,6 +77,7 @@ local function updateRows()
     slider:SetMinMaxValues(0, maxOffset)
     slider:SetValue(offset)
     slider:SetShown(maxOffset > 0)
+    local mine = ET.UnitFaction("player")
     for i = 1, VISIBLE_ROWS do
         local row = rows[i]
         local item = data[offset + i]
@@ -69,25 +85,30 @@ local function updateRows()
             local e = item.e
             row.key = item.key
             local label = e.name
-            if e.needsSurname then label = label .. " |cff999999" .. L.NO_SURNAME .. "|r"
-            elseif item.shared then label = "|cff6fa8dc" .. label .. "|r" end
+            if e.needsSurname then label = label .. "  " .. UI.Color("muted", L.NO_SURNAME)
+            elseif item.shared then label = UI.Color("shared", label) end
             row.cols.name:SetText(label)
-            row.cols.killedMe:SetText(e.stats.killedMe)
-            row.cols.iKilled:SetText(e.stats.iKilled)
+            row.cols.killedMe:SetText(count(e.stats.killedMe))
+            row.cols.iKilled:SetText(count(e.stats.iKilled))
             -- Own faction: never alerted, so "last seen" means little; show a dash.
-            local mine = ET.UnitFaction("player")
-            local seen = (mine and e.faction == mine) and "|cff999999-|r"
-                or ET.nearby[item.key] and ("|cff40ff40" .. L.JUST_NOW .. "|r") or ET.FormatAgo(e.lastSeen)
+            local seen = (mine and e.faction == mine) and UI.Color("muted", "-")
+                or ET.nearby[item.key] and UI.Color("ok", L.JUST_NOW)
+                or (e.lastSeen or 0) == 0 and UI.Color("muted", L.NEVER)
+                or ET.FormatAgo(e.lastSeen)
             row.cols.lastSeen:SetText(seen)
-            row.cols.addedAt:SetText(item.shared and ("|cff6fa8dc" .. L.FROM_GROUP .. "|r") or ET.FormatDate(e.addedAt))
-            row.cols.detections:SetText(e.stats.detections)
-            row.sel:SetShown(item.key == selectedKey)
+            row.cols.addedAt:SetText(item.shared and UI.Color("shared", L.FROM_GROUP)
+                or UI.Color("muted", ET.FormatDate(e.addedAt)))
+            row.cols.detections:SetText(count(e.stats.detections))
+            local selected = item.key == selectedKey
+            row.sel:SetShown(selected)
+            row.selBar:SetShown(selected)
             row:Show()
         else
             row.key = nil
             row:Hide()
         end
     end
+    updateHeaders()
     local shared = 0
     for _ in pairs(ET.sharedView) do shared = shared + 1 end
     totalText:SetFormattedText(L.TOTAL_SHARED, ET:EnemyCount(), shared, #data)
@@ -120,61 +141,89 @@ local function refresh()
     updateRows()
 end
 
-local function makeButton(parent, text, w, name)
-    local b = CreateFrame("Button", name, parent, "UIPanelButtonTemplate")
-    b:SetSize(w or 110, 22)
-    b:SetText(text)
-    return b
-end
-
-local function makeEditBox(parent, w, name)
-    local e = CreateFrame("EditBox", name, parent, "InputBoxTemplate")
-    e:SetSize(w, 20)
-    e:SetAutoFocus(false)
-    e:SetMaxLetters(48)
-    return e
+local function createRow(listFrame, i)
+    local row = CreateFrame("Button", "EnemyTrackerDashboardRow" .. i, listFrame)
+    row:SetSize(W - PAD * 2 - 10, ROW_H)
+    row:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H)
+    if i % 2 == 0 then
+        local bg = row:CreateTexture(nil, "BACKGROUND")
+        bg:SetAllPoints()
+        bg:SetColorTexture(1, 1, 1, 0.025)
+    end
+    local hl = row:CreateTexture(nil, "HIGHLIGHT")
+    hl:SetAllPoints()
+    hl:SetColorTexture(1, 1, 1, 0.05)
+    local sel = row:CreateTexture(nil, "BORDER")
+    sel:SetAllPoints()
+    sel:SetColorTexture(UI.C.accent[1], UI.C.accent[2], UI.C.accent[3], 0.13)
+    sel:Hide()
+    row.sel = sel
+    local bar = row:CreateTexture(nil, "ARTWORK")
+    bar:SetColorTexture(UI.C.accent[1], UI.C.accent[2], UI.C.accent[3], 1)
+    bar:SetWidth(2)
+    bar:SetPoint("TOPLEFT")
+    bar:SetPoint("BOTTOMLEFT")
+    bar:Hide()
+    row.selBar = bar
+    row.cols = {}
+    for _, c in ipairs(COLUMNS) do
+        local fs = UI.Text(row, "GameFontHighlightSmall", "text")
+        fs:SetPoint("LEFT", c.x, 0)
+        fs:SetWidth(c.w)
+        fs:SetJustifyH(c.justify)
+        fs:SetWordWrap(false)
+        row.cols[c.id] = fs
+    end
+    row:SetScript("OnClick", function(self)
+        selectedKey = (selectedKey == self.key) and nil or self.key
+        updateRows()
+    end)
+    row:SetScript("OnEnter", function(self)
+        local e = self.key and ET:GetTracked(self.key)
+        if not e then return end
+        local desc = ET:DescriptionOf(self.key)
+        local mine = ET.UnitFaction("player")
+        local own = mine ~= nil and e.faction == mine
+        if desc == "" and not e.shared and not own then return end
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:AddLine(e.name, 1, 0.3, 0.3)
+        if own then GameTooltip:AddLine(L.OWN_FACTION, 0.6, 0.6, 0.6, true) end
+        if desc ~= "" then GameTooltip:AddLine(ET.EscapeText(desc), 1, 1, 1, true) end
+        if e.shared then
+            GameTooltip:AddLine(string.format(L.SHARED_BY, e.by or "?"), UI.C.shared[1], UI.C.shared[2], UI.C.shared[3])
+        end
+        GameTooltip:Show()
+    end)
+    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    return row
 end
 
 local function create()
-    frame = ET.CreateBackdropFrame("Frame", "EnemyTrackerDashboard", UIParent)
-    frame:SetSize(W, H)
-    frame:SetFrameStrata("DIALOG")
-    frame:SetToplevel(true)
-    frame:SetMovable(true)
-    frame:SetClampedToScreen(true)
-    frame:EnableMouse(true)
-    frame:RegisterForDrag("LeftButton")
-    frame:SetScript("OnDragStart", frame.StartMoving)
+    frame = UI.Window("EnemyTrackerDashboard", W, H, "Enemy Tracker", L.DASH_TITLE)
     frame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
         ET.SavePosition(self, ET.db.positions.dashboard)
     end)
-    if frame.SetBackdropColor then frame:SetBackdropColor(0.05, 0.05, 0.05, 0.95) end
-    frame:Hide()
-    tinsert(UISpecialFrames, "EnemyTrackerDashboard") -- close with Escape
 
-    local title = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOP", 0, -12)
-    title:SetText(L.DASH_TITLE)
+    local groupsBtn = UI.Button(frame, L.BTN_GROUPS, 90, nil, "ghost")
+    groupsBtn:SetPoint("RIGHT", frame.close, "LEFT", -8, 0)
+    groupsBtn:SetScript("OnClick", function() ET:ToggleGroupsPanel() end)
+    frame.groupsBtn = groupsBtn
 
-    local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
-    close:SetPoint("TOPRIGHT", -4, -4)
-
-
-    -- Search
-    local searchLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    searchLabel:SetPoint("TOPLEFT", 16, -44)
-    searchLabel:SetText(L.SEARCH)
-    searchBox = makeEditBox(frame, 160)
-    searchBox:SetPoint("LEFT", searchLabel, "RIGHT", 10, 0)
+    -- Toolbar: search on the left, add on the right.
+    local y = -UI.HEADER_H - 14
+    searchBox = UI.EditBox(frame, 220, nil, L.SEARCH)
+    searchBox:SetPoint("TOPLEFT", PAD, y)
     searchBox:SetScript("OnTextChanged", function() offset = 0; refresh() end)
     searchBox:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
 
-    -- Add
-    addBox = makeEditBox(frame, 130, "EnemyTrackerDashboardAddBox")
-    addBox:SetPoint("LEFT", searchBox, "RIGHT", 30, 0)
-    local addBtn = makeButton(frame, L.BTN_ADD, 80)
-    addBtn:SetPoint("LEFT", addBox, "RIGHT", 6, 0)
+    local addTarget = UI.Button(frame, L.BTN_ADD_TARGET, 120)
+    addTarget:SetPoint("TOPRIGHT", -PAD, y)
+    addTarget:SetScript("OnClick", function() ET:AddTarget() end)
+    local addBtn = UI.Button(frame, L.BTN_ADD, 90, nil, "primary")
+    addBtn:SetPoint("RIGHT", addTarget, "LEFT", -6, 0)
+    addBox = UI.EditBox(frame, 170, "EnemyTrackerDashboardAddBox", L.PH_NAME)
+    addBox:SetPoint("RIGHT", addBtn, "LEFT", -6, 0)
     local function doAdd()
         if ET:AddEnemyManual(addBox:GetText()) then addBox:SetText("") end
         addBox:ClearFocus()
@@ -182,136 +231,62 @@ local function create()
     addBtn:SetScript("OnClick", doAdd)
     addBox:SetScript("OnEnterPressed", doAdd)
     addBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-    local addTarget = makeButton(frame, L.BTN_ADD_TARGET, 120)
-    addTarget:SetPoint("LEFT", addBtn, "RIGHT", 6, 0)
-    addTarget:SetScript("OnClick", function() ET:AddTarget() end)
 
     -- Column headers (click to sort)
-    local listTop = -76
+    y = y - 38
     for _, c in ipairs(COLUMNS) do
         local h = CreateFrame("Button", nil, frame)
-        h:SetSize(c.w, 18)
-        h:SetPoint("TOPLEFT", 12 + c.x, listTop)
-        local fs = h:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        h:SetSize(c.w, 16)
+        h:SetPoint("TOPLEFT", PAD + c.x, y)
+        local fs = UI.Text(h, "GameFontNormalSmall", "muted")
         fs:SetAllPoints()
         fs:SetJustifyH(c.justify)
         fs:SetText(L[c.label])
+        headers[c.id] = fs
         h:SetScript("OnClick", function()
             if sortKey == c.id then sortDesc = not sortDesc
             else sortKey, sortDesc = c.id, c.id ~= "name" end
             refresh()
         end)
-        h:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
     end
+    y = y - 20
+    UI.Divider(frame, y, PAD, PAD)
 
     -- Rows
     local listFrame = CreateFrame("Frame", nil, frame)
-    listFrame:SetPoint("TOPLEFT", 12, listTop - 20)
-    listFrame:SetSize(W - 44, ROW_H * VISIBLE_ROWS)
+    listFrame:SetPoint("TOPLEFT", PAD, y - 2)
+    listFrame:SetSize(W - PAD * 2 - 10, ROW_H * VISIBLE_ROWS)
     listFrame:EnableMouseWheel(true)
     listFrame:SetScript("OnMouseWheel", function(_, delta)
         offset = math.max(0, math.min(offset - delta * 3, math.max(0, #data - VISIBLE_ROWS)))
         updateRows()
     end)
     rows = {}
-    for i = 1, VISIBLE_ROWS do
-        local row = CreateFrame("Button", "EnemyTrackerDashboardRow" .. i, listFrame)
-        row:SetSize(W - 44, ROW_H)
-        row:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H)
-        local bg = row:CreateTexture(nil, "BACKGROUND")
-        bg:SetAllPoints()
-        bg:SetColorTexture(1, 1, 1, (i % 2 == 0) and 0.04 or 0)
-        local sel = row:CreateTexture(nil, "BORDER")
-        sel:SetAllPoints()
-        sel:SetColorTexture(0.9, 0.2, 0.2, 0.3)
-        sel:Hide()
-        row.sel = sel
-        row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
-        row.cols = {}
-        for _, c in ipairs(COLUMNS) do
-            local fs = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-            fs:SetPoint("LEFT", c.x, 0)
-            fs:SetWidth(c.w)
-            fs:SetJustifyH(c.justify)
-            fs:SetWordWrap(false)
-            row.cols[c.id] = fs
-        end
-        row:SetScript("OnClick", function(self)
-            selectedKey = (selectedKey == self.key) and nil or self.key
-            updateRows()
-        end)
-        row:SetScript("OnEnter", function(self)
-            local e = self.key and ET:GetTracked(self.key)
-            if not e then return end
-            local desc = ET:DescriptionOf(self.key)
-            local mine = ET.UnitFaction("player")
-            local own = mine ~= nil and e.faction == mine
-            if desc == "" and not e.shared and not own then return end
-            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-            GameTooltip:AddLine(e.name, 1, 0.3, 0.3)
-            if own then GameTooltip:AddLine(L.OWN_FACTION, 0.6, 0.6, 0.6, true) end
-            if desc ~= "" then GameTooltip:AddLine(ET.EscapeText(desc), 1, 1, 1, true) end
-            if e.shared then
-                GameTooltip:AddLine(string.format(L.SHARED_BY, e.by or "?"), 0.44, 0.66, 0.86)
-            end
-            GameTooltip:Show()
-        end)
-        row:SetScript("OnLeave", function() GameTooltip:Hide() end)
-        rows[i] = row
-    end
+    for i = 1, VISIBLE_ROWS do rows[i] = createRow(listFrame, i) end
 
-    slider = CreateFrame("Slider", nil, frame)
-    slider:SetOrientation("VERTICAL")
-    slider:SetPoint("TOPLEFT", listFrame, "TOPRIGHT", 6, 0)
-    slider:SetPoint("BOTTOMLEFT", listFrame, "BOTTOMRIGHT", 6, 0)
-    slider:SetWidth(14)
-    slider:SetValueStep(1)
-    if slider.SetObeyStepOnDrag then slider:SetObeyStepOnDrag(true) end
-    slider:SetThumbTexture("Interface\\Buttons\\UI-ScrollBar-Knob")
-    local track = slider:CreateTexture(nil, "BACKGROUND")
-    track:SetAllPoints()
-    track:SetColorTexture(1, 1, 1, 0.08)
+    slider = UI.Scrollbar(frame)
+    slider:SetPoint("TOPRIGHT", -PAD, y - 2)
+    slider:SetHeight(ROW_H * VISIBLE_ROWS)
     slider:SetScript("OnValueChanged", function(_, value)
         value = math.floor(value + 0.5)
         if value ~= offset then offset = value; updateRows() end
     end)
-
-    -- Join a group by ID right here, no chat command needed
-    local groupLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    groupLabel:SetPoint("BOTTOMLEFT", 16, 110)
-    groupLabel:SetText(L.GROUP_ID_LABEL)
-    joinBox = makeEditBox(frame, 170, "EnemyTrackerDashboardJoinBox")
-    joinBox:SetMaxLetters(24)
-    joinBox:SetPoint("LEFT", groupLabel, "RIGHT", 10, 0)
-    joinBtn = makeButton(frame, L.BTN_JOIN, 90, "EnemyTrackerDashboardJoin")
-    joinBtn:SetPoint("LEFT", joinBox, "RIGHT", 6, 0)
-    local function doJoin()
-        if ET:JoinGroup(joinBox:GetText()) then joinBox:SetText("") end
-        joinBox:ClearFocus()
-    end
-    joinBtn:SetScript("OnClick", doJoin)
-    joinBox:SetScript("OnEnterPressed", doJoin)
-    joinBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
-    createBtn = makeButton(frame, L.BTN_CREATE_GROUP, 120, "EnemyTrackerDashboardCreate")
-    createBtn:SetPoint("LEFT", joinBtn, "RIGHT", 8, 0)
-    createBtn:SetScript("OnClick", function() ET:CreateGroup() end)
-    local groupsBtn = makeButton(frame, L.BTN_GROUPS, 100)
-    groupsBtn:SetPoint("LEFT", createBtn, "RIGHT", 8, 0)
-    groupsBtn:SetScript("OnClick", function() ET:ToggleGroupsPanel() end)
-    frame.groupsBtn = groupsBtn
+    y = y - 4 - ROW_H * VISIBLE_ROWS
+    UI.Divider(frame, y, PAD, PAD)
 
     -- Description of the selected player
-    local descLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    descLabel:SetPoint("BOTTOMLEFT", 16, 78)
-    descLabel:SetText(L.DESCRIPTION)
-    descBox = makeEditBox(frame, 440, "EnemyTrackerDashboardDescription")
+    y = y - 12
+    local descLabel = UI.Section(frame, L.DESCRIPTION)
+    descLabel:SetPoint("TOPLEFT", PAD, y)
+    y = y - 16
+    descSave = UI.Button(frame, L.BTN_SAVE, 100)
+    descSave:SetPoint("TOPRIGHT", -PAD, y)
+    descBox = UI.EditBox(frame, W - PAD * 2 - 108, "EnemyTrackerDashboardDescription", L.PH_DESCRIPTION)
     descBox:SetMaxLetters(ET.DESCRIPTION_MAX)
-    descBox:SetPoint("LEFT", descLabel, "RIGHT", 10, 0)
-    descSave = makeButton(frame, L.BTN_SAVE, 90)
-    descSave:SetPoint("LEFT", descBox, "RIGHT", 8, 0)
+    descBox:SetPoint("TOPLEFT", PAD, y)
     -- Descriptions reach the whole group; keep them about play.
-    local descHint = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    descHint:SetPoint("TOPLEFT", descBox, "BOTTOMLEFT", -4, -4)
+    local descHint = UI.Text(frame, "GameFontNormalSmall", "muted")
+    descHint:SetPoint("TOPLEFT", descBox, "BOTTOMLEFT", 0, -5)
     descHint:SetText(L.DESC_HINT)
     frame.descHint = descHint
     local function saveDescription()
@@ -329,37 +304,57 @@ local function create()
         self:ClearFocus()
     end)
 
-    -- Bottom bar
-    clearBtn = makeButton(frame, L.BTN_CLEAR, 130)
-    clearBtn:SetPoint("BOTTOMLEFT", 16, 40)
-    clearBtn:SetScript("OnClick", function()
-        local e = selectedKey and ET.db.enemies[selectedKey]
-        if e then ET:ConfirmClear(e.name) end
-    end)
-    removeBtn = makeButton(frame, L.BTN_REMOVE, 110)
-    removeBtn:SetPoint("LEFT", clearBtn, "RIGHT", 8, 0)
+    -- Join or create a group right here, no chat command needed
+    y = y - 50
+    local groupLabel = UI.Section(frame, L.GROUP_ID_LABEL)
+    groupLabel:SetPoint("TOPLEFT", PAD, y)
+    y = y - 16
+    joinBox = UI.EditBox(frame, 200, "EnemyTrackerDashboardJoinBox", "ET-XXXX-XXXX-XXXX")
+    joinBox:SetMaxLetters(24)
+    joinBox:SetPoint("TOPLEFT", PAD, y)
+    joinBtn = UI.Button(frame, L.BTN_JOIN, 100, "EnemyTrackerDashboardJoin")
+    joinBtn:SetPoint("LEFT", joinBox, "RIGHT", 6, 0)
+    local function doJoin()
+        if ET:JoinGroup(joinBox:GetText()) then joinBox:SetText("") end
+        joinBox:ClearFocus()
+    end
+    joinBtn:SetScript("OnClick", doJoin)
+    joinBox:SetScript("OnEnterPressed", doJoin)
+    joinBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    createBtn = UI.Button(frame, L.BTN_CREATE_GROUP, 140, "EnemyTrackerDashboardCreate", "ghost")
+    createBtn:SetPoint("LEFT", joinBtn, "RIGHT", 6, 0)
+    createBtn:SetScript("OnClick", function() ET:CreateGroup() end)
+    y = y - 36
+    UI.Divider(frame, y, PAD, PAD)
+
+    -- Footer: actions on the selection, scanning, totals
+    y = y - 12
+    removeBtn = UI.Button(frame, L.BTN_REMOVE, 130, nil, "danger")
+    removeBtn:SetPoint("TOPLEFT", PAD, y)
     removeBtn:SetScript("OnClick", function()
         local e = selectedKey and ET.db.enemies[selectedKey]
         if e then ET:ConfirmRemove(e.name) return end
         local v = selectedKey and ET.sharedView[selectedKey]
         if v and ET:AddEnemy(v.name) then ET.db.enemies[selectedKey].faction = v.faction end
     end)
+    clearBtn = UI.Button(frame, L.BTN_CLEAR, 130)
+    clearBtn:SetPoint("LEFT", removeBtn, "RIGHT", 6, 0)
+    clearBtn:SetScript("OnClick", function()
+        local e = selectedKey and ET.db.enemies[selectedKey]
+        if e then ET:ConfirmClear(e.name) end
+    end)
 
-    scanCheck = CreateFrame("CheckButton", nil, frame, "UICheckButtonTemplate")
-    scanCheck:SetSize(24, 24)
-    scanCheck:SetPoint("LEFT", removeBtn, "RIGHT", 20, 0)
-    local scanLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    scanLabel:SetPoint("LEFT", scanCheck, "RIGHT", 2, 0)
-    scanLabel:SetText(L.SCANNING)
+    scanCheck = UI.Check(frame, L.SCANNING)
+    scanCheck:SetPoint("LEFT", clearBtn, "RIGHT", 18, 0)
     scanCheck:SetScript("OnClick", function(self) ET:SetScanning(self:GetChecked()) end)
 
-    totalText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-    totalText:SetPoint("BOTTOMRIGHT", -18, 46)
+    totalText = UI.Text(frame, "GameFontNormalSmall", "muted")
+    totalText:SetPoint("TOPRIGHT", -PAD, y - 6)
+    totalText:SetJustifyH("RIGHT")
 
-    local note = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-    note:SetPoint("BOTTOMLEFT", 16, 16)
-    note:SetPoint("BOTTOMRIGHT", -16, 16)
-    note:SetJustifyH("LEFT")
+    local note = UI.Text(frame, "GameFontNormalSmall", "muted")
+    note:SetPoint("BOTTOMLEFT", PAD, 12)
+    note:SetPoint("BOTTOMRIGHT", -PAD, 12)
     frame.note = note
 
     frame:SetScript("OnShow", function()

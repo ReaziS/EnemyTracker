@@ -35,4 +35,12 @@ return {
         ok(ET.UI.Hex("accent"):match("^|cff%x%x%x%x%x%x$"))
     end },
 
+    { "the window close button hides the window", function()
+        local ET, env = H.boot()
+        ET:ShowDashboard()
+        local d = env.EnemyTrackerDashboard
+        ok(d:IsShown())
+        mock.click(d.close)
+        no(d:IsShown())
+    end },
 }
