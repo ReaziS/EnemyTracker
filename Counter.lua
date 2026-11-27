@@ -49,18 +49,17 @@ local function refresh()
 end
 
 local function createList()
-    list = ET.CreateBackdropFrame("Frame", "EnemyTrackerNearbyList", counter)
+    local UI = ET.UI
+    list = UI.Frame("Frame", "EnemyTrackerNearbyList", counter)
     list:SetWidth(240)
-    list:SetPoint("TOP", counter, "BOTTOM", 0, -2)
+    list:SetPoint("TOP", counter, "BOTTOM", 0, -4)
     list:SetFrameStrata("HIGH")
     list:SetClampedToScreen(true)
-    if list.SetBackdropColor then
-        list:SetBackdropColor(0, 0, 0, 0.85)
-    end
-    local title = list:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    UI.Paint(list, UI.C.bg, UI.C.border)
+    local title = UI.Text(list, "GameFontNormalSmall", "muted")
     title:SetPoint("TOPLEFT", 10, -8)
     title:SetText(L.NEARBY_TITLE)
-    local empty = list:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    local empty = UI.Text(list, "GameFontNormalSmall", "muted")
     empty:SetPoint("TOPLEFT", 10, -26)
     empty:SetText(L.NEARBY_EMPTY)
     list.empty = empty
@@ -68,9 +67,9 @@ local function createList()
         local row = CreateFrame("Frame", nil, list)
         row:SetSize(220, ROW_H)
         row:SetPoint("TOPLEFT", 10, -26 - (i - 1) * ROW_H)
-        row.left = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        row.left = UI.Text(row, "GameFontHighlightSmall", "text")
         row.left:SetPoint("LEFT")
-        row.right = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+        row.right = UI.Text(row, "GameFontNormalSmall", "muted")
         row.right:SetPoint("RIGHT")
         rows[i] = row
     end
@@ -78,17 +77,15 @@ local function createList()
 end
 
 local function create()
-    counter = ET.CreateBackdropFrame("Button", "EnemyTrackerCounter", UIParent)
+    local UI = ET.UI
+    counter = UI.Frame("Button", "EnemyTrackerCounter", UIParent)
     counter:SetSize(140, 24)
     counter:SetFrameStrata("MEDIUM")
     counter:SetMovable(true)
     counter:SetClampedToScreen(true)
-    if counter.SetBackdropColor then
-        counter:SetBackdropColor(0.1, 0, 0, 0.8)
-        counter:SetBackdropBorderColor(0.8, 0.2, 0.2, 1)
-    end
-    counter.text = counter:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-    counter.text:SetPoint("CENTER")
+    UI.Card(counter)
+    counter.text = UI.Text(counter, "GameFontHighlightSmall", "text")
+    counter.text:SetPoint("CENTER", 2, 0)
     counter:RegisterForClicks("LeftButtonUp")
     counter:RegisterForDrag("LeftButton")
     counter:SetScript("OnDragStart", function(self)
