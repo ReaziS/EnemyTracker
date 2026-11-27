@@ -363,6 +363,7 @@ function M.new(opts)
             return 0
         end,
         InChatMessagingLockdown = function() return s.lockdown and true or false end,
+        AreOutgoingAddonChatMessagesRestricted = function() return s.addonRestricted and true or false end,
     }
 
     -- Tooltips (retail TooltipDataProcessor, present on Forever)

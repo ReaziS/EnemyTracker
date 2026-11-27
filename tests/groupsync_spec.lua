@@ -278,4 +278,19 @@ return {
         no(a.ET.db.groups[GID])
         no(b.ET.db.groups[GID])
     end },
+
+    { "holds messages while outgoing addon messages are restricted", function()
+        local a = client("Anna", "Kova")
+        found(a)
+        mock.advance(a.env, 2)
+        a.env._state.addonOut = {}
+        a.env._state.addonRestricted = true
+        a.ET:AddEnemy("Ivan Petrov")
+        mock.advance(a.env, 5)
+        eq(#a.env._state.addonOut, 0, "nothing sent while restricted")
+        a.env._state.addonRestricted = false
+        mock.advance(a.env, 1)
+        eq(sentBodies(a.env, "R"), 1, "sent once allowed")
+        H.noErrors(a.env)
+    end },
 }

@@ -153,13 +153,25 @@ end
 -------------------------------------------------------------------------------
 -- Sending
 -------------------------------------------------------------------------------
+-- Midnight-era clients (Forever included) block outgoing addon messages in
+-- some situations; keep the queue until they are allowed again.
+local function outgoingBlocked()
+    if C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() then return true end
+    local check = C_ChatInfo.AreOutgoingAddonChatMessagesRestricted
+    if check then
+        local ok, restricted = pcall(check)
+        if ok and restricted and not ET.IsSecret(restricted) then return true end
+    end
+    return false
+end
+
 local function sendNext()
     local item = queue[1]
     if not item then
         if ticker then ticker:Cancel() ticker = nil end
         return
     end
-    if C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown() then return end
+    if outgoingBlocked() then return end
     local rt = runtime[item.id]
     if not (rt and rt.ready and ET.db.groups[item.id]) then
         table.remove(queue, 1)
