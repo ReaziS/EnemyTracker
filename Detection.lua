@@ -22,6 +22,14 @@ local function scanning()
     return ET.db and ET.db.settings.scanEnabled
 end
 
+-- Legacy record (first name only, from v0.1.1) that a seen full name may
+-- belong to: same first name, and the user has not said "not them".
+function ET:LegacyKeyFor(fullKey)
+    local first = fullKey:match("^(%S+) ")
+    local e = first and self.db.enemies[first]
+    if e and e.needsSurname and not (e.notThem and e.notThem[fullKey]) then return first end
+end
+
 -- Records that a blacklisted player (by key) is visible right now.
 function ET:MarkSeen(key, seenName, source)
     local entry = self.db.enemies[key]
@@ -41,7 +49,8 @@ function ET:MarkSeen(key, seenName, source)
     if spelled and spelled ~= entry.name and ET.NameKey(spelled) == key then
         entry.name = spelled
     end
-    d.name = entry.name
+    -- A legacy record shows (and targets) the full name actually seen.
+    d.name = entry.needsSurname and spelled or entry.name
     entry.lastSeen = time()
     if isNew then
         entry.stats.detections = entry.stats.detections + 1
@@ -51,24 +60,27 @@ function ET:MarkSeen(key, seenName, source)
     end
 end
 
--- Checks a unit token; cheap when it is not a blacklisted player.
-function ET:ObserveUnit(unit, source)
-    if not scanning() then return end
-    local name = ET.PlayerName(unit)
-    if not name then return end
-    local key = ET.NameKey(name)
-    if key and self.db.enemies[key] then
-        self:MarkSeen(key, name, source)
-    end
-end
-
--- Called from the combat log handler for player-type sources/destinations.
+-- Matches a seen full name against the blacklist; cheap when not listed.
 function ET:ObserveName(name, source)
     if not scanning() or not name then return end
     local key = ET.NameKey(name)
-    if key and self.db.enemies[key] then
+    if not key then return end
+    if self.db.enemies[key] then
         self:MarkSeen(key, name, source)
+        return
     end
+    local legacyKey = self:LegacyKeyFor(key)
+    if legacyKey then
+        self:MarkSeen(legacyKey, name, source)
+        self:Fire("SURNAME_CANDIDATE", legacyKey, ET.NormalizeName(name))
+    end
+end
+
+-- Checks a unit token.
+function ET:ObserveUnit(unit, source)
+    if not scanning() then return end
+    local name = ET.PlayerName(unit)
+    if name then self:ObserveName(name, source) end
 end
 
 function ET:ScanAll()
@@ -168,11 +180,21 @@ ET:On("LOGIN", function()
     end)
 end)
 
-ET:On("BLACKLIST_CHANGED", function(key, action)
-    if action == "remove" and nearby[key] then
+ET:On("BLACKLIST_CHANGED", function(key, action, oldKey)
+    if (action == "remove" or action == "reject") and nearby[key] then
         nearby[key] = nil
         ET:Fire("ENEMY_LOST", key)
         ET:Fire("NEARBY_CHANGED")
+    elseif action == "rename" then
+        local d = nearby[oldKey]
+        if d then
+            nearby[oldKey] = nil
+            if not nearby[key] then
+                d.key, d.name = key, ET.db.enemies[key].name
+                nearby[key] = d
+            end
+            ET:Fire("NEARBY_CHANGED")
+        end
     elseif action == "add" then
         ET:ScanAll()
     end

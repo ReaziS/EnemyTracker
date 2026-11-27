@@ -61,7 +61,7 @@ local function updateRows()
         if item then
             local e = item.e
             row.key = item.key
-            row.cols.name:SetText(e.name)
+            row.cols.name:SetText(e.needsSurname and (e.name .. " |cff999999" .. L.NO_SURNAME .. "|r") or e.name)
             row.cols.killedMe:SetText(e.stats.killedMe)
             row.cols.iKilled:SetText(e.stats.iKilled)
             local seen = ET.nearby[item.key] and ("|cff40ff40" .. L.JUST_NOW .. "|r") or ET.FormatAgo(e.lastSeen)

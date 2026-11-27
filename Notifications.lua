@@ -342,13 +342,21 @@ ET:On("POSITIONS_RESET", function()
 end)
 
 ET:On("ENEMY_DETECTED", function(key, entry)
-    ET:Notify(key, entry.name)
+    local d = ET.nearby[key]
+    ET:Notify(key, d and d.name or entry.name)
 end)
 
-ET:On("BLACKLIST_CHANGED", function(key, action)
-    if action == "remove" then
+ET:On("BLACKLIST_CHANGED", function(key, action, oldKey)
+    if action == "remove" or action == "reject" then
         local t = findToast(key)
         if t then ET:CloseToast(t) end
+    elseif action == "rename" then
+        local t = findToast(oldKey)
+        if t then
+            t.key, t.name = key, ET.db.enemies[key].name
+            t.nameText:SetText(t.name)
+            if not attach(t) then refreshHint(t) end
+        end
     end
 end)
 

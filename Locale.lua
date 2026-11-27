@@ -41,6 +41,10 @@ local L = {
     YOU_KILLED = "You killed %s (recorded).",
     LIST_HEADER = "Blacklist (%d):",
     LIST_EMPTY = "The blacklist is empty.",
+    SURNAME_CONFIRM = "Enemy Tracker: your blacklist has \"%s\" without a surname (saved by an older version).\nIs this player %s?",
+    SURNAME_COMPLETED = "%s: surname added, statistics kept.",
+    SURNAME_REJECTED = "%s will no longer be matched with \"%s\".",
+    NO_SURNAME = "(no surname)",
 
     HELP = {
         "/et add [First Surname] - add player (no name = current target)",
@@ -165,6 +169,10 @@ if GetLocale() == "ruRU" then
         YOU_KILLED = "Вы убили %s (засчитано).",
         LIST_HEADER = "Чёрный список (%d):",
         LIST_EMPTY = "Чёрный список пуст.",
+        SURNAME_CONFIRM = "Enemy Tracker: в чёрном списке есть «%s» без фамилии (сохранено старой версией).\nЭто игрок %s?",
+        SURNAME_COMPLETED = "%s: фамилия добавлена, статистика сохранена.",
+        SURNAME_REJECTED = "%s больше не будет сопоставляться с «%s».",
+        NO_SURNAME = "(без фамилии)",
 
         HELP = {
             "/et add [Имя Фамилия] - добавить игрока (без имени - текущая цель)",

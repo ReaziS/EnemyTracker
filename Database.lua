@@ -230,8 +230,71 @@ function ET:ClearStats(name)
 end
 
 -------------------------------------------------------------------------------
+-- Legacy records without a surname (v0.1.1 stored only the first name).
+-- When a player with that first name is seen, the user confirms whether it
+-- is the same person; the record then gets the full name and keeps its stats.
+-------------------------------------------------------------------------------
+
+-- "Yes, that's them": the legacy record becomes fullName.
+function ET:CompleteSurname(legacyKey, fullName)
+    local e = self.db.enemies[legacyKey]
+    if not (e and e.needsSurname and ET.IsValidName(fullName)) then return false end
+    local key = ET.NameKey(fullName)
+    self.db.enemies[legacyKey] = nil
+    local existing = self.db.enemies[key]
+    if existing then
+        mergeInto(existing, e)
+    else
+        e.name = ET.NormalizeName(fullName)
+        e.needsSurname, e.notThem = nil, nil
+        self.db.enemies[key] = e
+    end
+    self:Print(string.format(L.SURNAME_COMPLETED, self.db.enemies[key].name))
+    self:Fire("BLACKLIST_CHANGED", key, "rename", legacyKey)
+    return true
+end
+
+-- "No, someone else": never match that full name with the record again.
+function ET:RejectSurname(legacyKey, fullName)
+    local e = self.db.enemies[legacyKey]
+    local key = ET.NameKey(fullName)
+    if not (e and e.needsSurname and key) then return false end
+    e.notThem = e.notThem or {}
+    e.notThem[key] = true
+    self:Print(string.format(L.SURNAME_REJECTED, ET.NormalizeName(fullName), e.name))
+    self:Fire("BLACKLIST_CHANGED", legacyKey, "reject")
+    return true
+end
+
+local askedSurname = {} -- "legacyKey|fullKey" -> true, once per session
+
+ET:On("SURNAME_CANDIDATE", function(legacyKey, fullName)
+    local id = legacyKey .. "|" .. (ET.NameKey(fullName) or "")
+    if askedSurname[id] then return end
+    askedSurname[id] = true
+    local e = ET.db.enemies[legacyKey]
+    StaticPopup_Show("ENEMYTRACKER_CONFIRM_SURNAME", string.format(L.SURNAME_CONFIRM, e.name, fullName), nil,
+        { key = legacyKey, name = fullName })
+end)
+
+-------------------------------------------------------------------------------
 -- Confirmation dialogs (irreversible actions)
 -------------------------------------------------------------------------------
+StaticPopupDialogs["ENEMYTRACKER_CONFIRM_SURNAME"] = {
+    text = "%s",
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function(_, data) ET:CompleteSurname(data.key, data.name) end,
+    -- Only an explicit "No" rejects; closing for other reasons asks again later.
+    OnCancel = function(_, data, reason)
+        if reason == "clicked" then ET:RejectSurname(data.key, data.name) end
+    end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
 StaticPopupDialogs["ENEMYTRACKER_CONFIRM_REMOVE"] = {
     text = "%s",
     button1 = YES,

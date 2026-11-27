@@ -368,6 +368,14 @@ function M.acceptPopup(env)
     dialog.OnAccept(nil, p.data)
 end
 
+-- Presses "No" on the most recent StaticPopup.
+function M.declinePopup(env)
+    local p = table.remove(env._state.popups)
+    assert(p, "no popup shown")
+    local dialog = env.StaticPopupDialogs[p.which]
+    if dialog.OnCancel then dialog.OnCancel(nil, p.data, "clicked") end
+end
+
 -- Opens the right-click menu for a tag and returns the entries added to it.
 function M.openMenu(env, tag, contextData)
     local entries = {}
