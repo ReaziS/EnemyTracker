@@ -19,6 +19,7 @@ Turn on **enemy nameplates** (`V`, or Options > Interface > Names). Nameplates a
 | Right-click a player | Add to / remove from Enemy Tracker. Works on unit frames, target frame, party/raid frames and names in chat |
 | `/et remove First Surname` | Remove a player, after confirmation. Deletes their stats too |
 | `/et clear First Surname` | Reset kill stats, after confirmation. The player stays in the list and "last seen" is kept |
+| `/et note First Surname [text]` | Set the player's description (one per player, up to 200 characters); no text clears it. Also editable in the dashboard |
 | `/et list` | Print the blacklist |
 | `/et show` | Open or close the dashboard (or left-click the minimap skull) |
 | `/et on`, `/et off`, `/et toggle` | Turn scanning on or off. It's on by default |

@@ -154,6 +154,23 @@ end
 
 function ET.Utf8Lower(s) return mapString(s, lowerCp, lowerCp) end
 
+-- First n UTF-8 characters of s (never cuts a character in half).
+function ET.Utf8Truncate(s, n)
+    local count, i = 0, 1
+    while i <= #s do
+        local c = s:byte(i)
+        if c < 0x80 or c >= 0xC0 then
+            count = count + 1
+            if count > n then return s:sub(1, i - 1) end
+        end
+        i = i + 1
+    end
+    return s
+end
+
+-- User text shown in the UI: "|" would start a colour/texture escape code.
+function ET.EscapeText(s) return (s:gsub("|", "||")) end
+
 -------------------------------------------------------------------------------
 -- Player names. On WoW Forever every character has a first name and a
 -- surname ("Ivan Petrov"); there are no realms. UnitName(unit) returns the

@@ -4,11 +4,12 @@
 local _, ET = ...
 local L = ET.L
 
-local W, H = 660, 470
+local W, H = 660, 510
 local ROW_H, VISIBLE_ROWS = 20, 15
 
 local frame, rows, slider, searchBox, addBox, totalText, scanCheck
-local clearBtn, removeBtn
+local clearBtn, removeBtn, descBox, descSave
+local descKey           -- record whose description is in descBox
 local data = {}         -- filtered + sorted entries { key, entry }
 local offset = 0
 local selectedKey
@@ -80,6 +81,15 @@ local function updateRows()
     clearBtn:SetEnabled(hasSel and true or false)
     removeBtn:SetEnabled(hasSel and true or false)
     scanCheck:SetChecked(ET.db.settings.scanEnabled)
+    -- Load the selected player's description, but never overwrite what the
+    -- user is typing for the same player.
+    if descKey ~= selectedKey then
+        descKey = hasSel and selectedKey or nil
+        descBox:SetText(descKey and ET.db.enemies[descKey].description or "")
+        descBox:ClearFocus()
+    end
+    descBox:SetEnabled(hasSel and true or false)
+    descSave:SetEnabled(hasSel and true or false)
 end
 
 local function refresh()
@@ -96,8 +106,8 @@ local function makeButton(parent, text, w)
     return b
 end
 
-local function makeEditBox(parent, w)
-    local e = CreateFrame("EditBox", nil, parent, "InputBoxTemplate")
+local function makeEditBox(parent, w, name)
+    local e = CreateFrame("EditBox", name, parent, "InputBoxTemplate")
     e:SetSize(w, 20)
     e:SetAutoFocus(false)
     e:SetMaxLetters(48)
@@ -182,7 +192,7 @@ local function create()
     end)
     rows = {}
     for i = 1, VISIBLE_ROWS do
-        local row = CreateFrame("Button", nil, listFrame)
+        local row = CreateFrame("Button", "EnemyTrackerDashboardRow" .. i, listFrame)
         row:SetSize(W - 44, ROW_H)
         row:SetPoint("TOPLEFT", 0, -(i - 1) * ROW_H)
         local bg = row:CreateTexture(nil, "BACKGROUND")
@@ -207,6 +217,15 @@ local function create()
             selectedKey = (selectedKey == self.key) and nil or self.key
             updateRows()
         end)
+        row:SetScript("OnEnter", function(self)
+            local e = self.key and ET.db.enemies[self.key]
+            if not e or e.description == "" then return end
+            GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+            GameTooltip:AddLine(e.name, 1, 0.3, 0.3)
+            GameTooltip:AddLine(ET.EscapeText(e.description), 1, 1, 1, true)
+            GameTooltip:Show()
+        end)
+        row:SetScript("OnLeave", function() GameTooltip:Hide() end)
         rows[i] = row
     end
 
@@ -224,6 +243,30 @@ local function create()
     slider:SetScript("OnValueChanged", function(_, value)
         value = math.floor(value + 0.5)
         if value ~= offset then offset = value; updateRows() end
+    end)
+
+    -- Description of the selected player
+    local descLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    descLabel:SetPoint("BOTTOMLEFT", 16, 78)
+    descLabel:SetText(L.DESCRIPTION)
+    descBox = makeEditBox(frame, 440, "EnemyTrackerDashboardDescription")
+    descBox:SetMaxLetters(ET.DESCRIPTION_MAX)
+    descBox:SetPoint("LEFT", descLabel, "RIGHT", 10, 0)
+    descSave = makeButton(frame, L.BTN_SAVE, 90)
+    descSave:SetPoint("LEFT", descBox, "RIGHT", 8, 0)
+    local function saveDescription()
+        local e = descKey and ET.db.enemies[descKey]
+        if e and ET:SetDescription(e.name, descBox:GetText()) then
+            descBox:SetText(e.description) -- as stored (trimmed)
+        end
+        descBox:ClearFocus()
+    end
+    descSave:SetScript("OnClick", saveDescription)
+    descBox:SetScript("OnEnterPressed", saveDescription)
+    descBox:SetScript("OnEscapePressed", function(self)
+        local e = descKey and ET.db.enemies[descKey]
+        self:SetText(e and e.description or "")
+        self:ClearFocus()
     end)
 
     -- Bottom bar

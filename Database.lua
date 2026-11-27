@@ -216,6 +216,23 @@ function ET:RemoveEnemy(name)
     return true
 end
 
+ET.DESCRIPTION_MAX = 200 -- characters
+
+-- Sets (or, with empty text, clears) the player's description: one short
+-- note per player about who they are and what they did.
+function ET:SetDescription(name, text)
+    local entry, key = self:GetEnemy(name)
+    if not entry then
+        self:Print(string.format(L.NOT_FOUND, tostring(name)))
+        return false
+    end
+    text = ET.Trim((type(text) == "string" and text or ""):gsub("%s+", " "))
+    entry.description = ET.Utf8Truncate(text, ET.DESCRIPTION_MAX)
+    self:Print(string.format(entry.description == "" and L.DESC_CLEARED or L.DESC_SAVED, entry.name))
+    self:Fire("BLACKLIST_CHANGED", key, "description")
+    return true
+end
+
 -- Resets kill counters and detection count. "Last seen" and "added" are kept.
 function ET:ClearStats(name)
     local entry, key = self:GetEnemy(name)

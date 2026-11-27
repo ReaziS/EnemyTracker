@@ -34,6 +34,16 @@ function ET:HandleSlash(msg)
             rest = ET.PlayerName("target") or ""
         end
         if rest ~= "" then self:ConfirmRemove(rest) else printHelp() end
+    elseif cmd == "note" or cmd == "desc" then
+        -- /et note First Surname [text]; no text clears the description.
+        local first, second, text = rest:match("^(%S+)%s*(%S*)%s*(.*)$")
+        local name
+        if first and first:find("-", 1, true) then -- "First-Surname text"
+            name, text = first, ET.Trim(second .. " " .. text)
+        elseif first and second ~= "" then
+            name = first .. " " .. second
+        end
+        if name then self:SetDescription(name, text) else printHelp() end
     elseif cmd == "clear" then
         if rest ~= "" then self:ConfirmClear(rest) else printHelp() end
     elseif cmd == "list" or cmd == "ls" then
