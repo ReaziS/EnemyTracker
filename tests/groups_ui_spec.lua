@@ -100,4 +100,23 @@ return {
         ok(frame.groupsBtn)
         H.noErrors(env)
     end },
+
+    { "the dashboard joins and creates groups without chat commands", function()
+        local ET, env = H.boot()
+        ET:ShowDashboard()
+        env.EnemyTrackerDashboardJoinBox:SetText("et-7kqm-x2pv-9hrb")
+        mock.click(env.EnemyTrackerDashboardJoin)
+        ok(ET.db.groups[GID])
+        eq(env.EnemyTrackerDashboardJoinBox:GetText(), "")
+        env.EnemyTrackerDashboardJoinBox:SetText("ET-7KQM-X2PV-9HRT")
+        mock.click(env.EnemyTrackerDashboardJoin)
+        eq(env.EnemyTrackerDashboardJoinBox:GetText(), "ET-7KQM-X2PV-9HRT", "kept for fixing a typo")
+        ok(H.chatContains(env, "ET-7KQM-X2PV-9HRT"))
+        mock.click(env.EnemyTrackerDashboardCreate)
+        eq(ET:GroupCount(), 2)
+        ET:CreateGroup()
+        no(env.EnemyTrackerDashboardJoin:IsEnabled(), "all slots used")
+        no(env.EnemyTrackerDashboardCreate:IsEnabled())
+        H.noErrors(env)
+    end },
 }

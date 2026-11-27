@@ -4,11 +4,11 @@
 local _, ET = ...
 local L = ET.L
 
-local W, H = 660, 510
+local W, H = 660, 540
 local ROW_H, VISIBLE_ROWS = 20, 15
 
 local frame, rows, slider, searchBox, addBox, totalText, scanCheck
-local clearBtn, removeBtn, descBox, descSave
+local clearBtn, removeBtn, descBox, descSave, joinBox, joinBtn, createBtn
 local descKey           -- record whose description is in descBox
 local data = {}         -- filtered + sorted entries { key, entry }
 local offset = 0
@@ -95,6 +95,9 @@ local function updateRows()
     removeBtn:SetText(sharedSel and L.BTN_ADD_TO_MINE or L.BTN_REMOVE)
     removeBtn:SetEnabled((hasSel or sharedSel) and true or false)
     scanCheck:SetChecked(ET.db.settings.scanEnabled)
+    local free = ET:GroupCount() < ET.MAX_GROUPS
+    joinBtn:SetEnabled(free)
+    createBtn:SetEnabled(free)
     -- Load the selected player's description, but never overwrite what the
     -- user is typing for the same player.
     if descKey ~= selectedKey then
@@ -114,8 +117,8 @@ local function refresh()
     updateRows()
 end
 
-local function makeButton(parent, text, w)
-    local b = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
+local function makeButton(parent, text, w, name)
+    local b = CreateFrame("Button", name, parent, "UIPanelButtonTemplate")
     b:SetSize(w or 110, 22)
     b:SetText(text)
     return b
@@ -153,10 +156,6 @@ local function create()
     local close = CreateFrame("Button", nil, frame, "UIPanelCloseButton")
     close:SetPoint("TOPRIGHT", -4, -4)
 
-    local groupsBtn = makeButton(frame, L.BTN_GROUPS, 90)
-    groupsBtn:SetPoint("TOPLEFT", 12, -10)
-    groupsBtn:SetScript("OnClick", function() ET:ToggleGroupsPanel() end)
-    frame.groupsBtn = groupsBtn
 
     -- Search
     local searchLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
@@ -270,6 +269,30 @@ local function create()
         if value ~= offset then offset = value; updateRows() end
     end)
 
+    -- Join a group by ID right here, no chat command needed
+    local groupLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    groupLabel:SetPoint("BOTTOMLEFT", 16, 110)
+    groupLabel:SetText(L.GROUP_ID_LABEL)
+    joinBox = makeEditBox(frame, 170, "EnemyTrackerDashboardJoinBox")
+    joinBox:SetMaxLetters(24)
+    joinBox:SetPoint("LEFT", groupLabel, "RIGHT", 10, 0)
+    joinBtn = makeButton(frame, L.BTN_JOIN, 90, "EnemyTrackerDashboardJoin")
+    joinBtn:SetPoint("LEFT", joinBox, "RIGHT", 6, 0)
+    local function doJoin()
+        if ET:JoinGroup(joinBox:GetText()) then joinBox:SetText("") end
+        joinBox:ClearFocus()
+    end
+    joinBtn:SetScript("OnClick", doJoin)
+    joinBox:SetScript("OnEnterPressed", doJoin)
+    joinBox:SetScript("OnEscapePressed", function(self) self:ClearFocus() end)
+    createBtn = makeButton(frame, L.BTN_CREATE_GROUP, 120, "EnemyTrackerDashboardCreate")
+    createBtn:SetPoint("LEFT", joinBtn, "RIGHT", 8, 0)
+    createBtn:SetScript("OnClick", function() ET:CreateGroup() end)
+    local groupsBtn = makeButton(frame, L.BTN_GROUPS, 100)
+    groupsBtn:SetPoint("LEFT", createBtn, "RIGHT", 8, 0)
+    groupsBtn:SetScript("OnClick", function() ET:ToggleGroupsPanel() end)
+    frame.groupsBtn = groupsBtn
+
     -- Description of the selected player
     local descLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     descLabel:SetPoint("BOTTOMLEFT", 16, 78)
@@ -350,6 +373,7 @@ end)
 ET:On("BLACKLIST_CHANGED", refresh)
 ET:On("NEARBY_CHANGED", refresh)
 ET:On("SHARED_CHANGED", refresh)
+ET:On("GROUPS_CHANGED", refresh)
 ET:On("SETTINGS_CHANGED", refresh)
 ET:On("POSITIONS_RESET", function()
     ET.db.positions.dashboard = {}
