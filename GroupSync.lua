@@ -46,6 +46,7 @@ local FUTURE_SLACK = 3600               -- accepted clock skew, seconds
 local TOMBSTONE_TTL = 30 * 86400
 local ANSWER_DELAY_MIN, ANSWER_DELAY_MAX = 1, 5
 local REQUEST_COOLDOWN = 60
+local RESYNC_EVERY = 300                -- seconds between digest checks per group
 local BUCKET_SIZE, BUCKET_RATE = 60, 4  -- per sender: burst, messages per second
 local MUTE_FOR = 300
 local PART_TTL = 30
@@ -335,6 +336,17 @@ handlers.H = function() end
 handlers.Q = function(id, sender, body)
     local rt = runtime[id]
     if body:sub(2) == ET:GroupDigest(id) then return end
+    -- Our lists differ. Answering only sends what we hold; so also ask back
+    -- with our own digest, and whoever holds records we lack sends them, no
+    -- matter which side asked first (once a minute per sender, no ping-pong).
+    rt.askedBack = rt.askedBack or {}
+    local asked = rt.askedBack[sender]
+    if not asked or GetTime() - asked >= REQUEST_COOLDOWN then
+        rt.askedBack[sender] = GetTime()
+        C_Timer.After(math.random(), function()
+            if rt.ready and ET.db.groups[id] then send(id, "Q" .. ET:GroupDigest(id)) end
+        end)
+    end
     if next(ET.db.groups[id].records) == nil then return end
     rt.answered = rt.answered or {}
     local last = rt.answered[sender]
@@ -508,6 +520,17 @@ ET:On("GROUP_READY", function(id)
         end)
     end
     send(id, "Q" .. ET:GroupDigest(id))
+end)
+
+-- Every few minutes each group compares digests once more, so a message
+-- lost on the way (or a member who came online meanwhile) is caught up
+-- without a reload.
+C_Timer.NewTicker(RESYNC_EVERY, function()
+    if not ET.db then return end
+    for id, g in pairs(ET.db.groups) do
+        local rt = runtime[id]
+        if rt and rt.ready and g.verified ~= false then send(id, "Q" .. ET:GroupDigest(id)) end
+    end
 end)
 
 ET:On("BLACKLIST_CHANGED", function(key, what)

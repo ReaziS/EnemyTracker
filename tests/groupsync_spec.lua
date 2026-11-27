@@ -455,4 +455,53 @@ return {
         mock.mesh(envs(a, b), 3)
         ok(rec(b, "zoya kuznec"), "ahead of the rest of the list")
     end },
+
+    { "a newcomer with an empty list gets it when a member comes online later", function()
+        -- B joined while nobody else was online; later A (who has the list)
+        -- logs in. A asks with its digest; B has nothing to send, but must
+        -- ask back so that A sends the list - no reload on B's side.
+        math.randomseed(9)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        a.ET:AddEnemy("Ivan Petrov")
+        a.ET:AddEnemy("Olga Smirnova")
+        found(b)
+        mock.mesh(envs(b), 5)
+        found(a)
+        mock.mesh(envs(a, b), 30)
+        ok(rec(b, "ivan petrov"), "B got A's list")
+        ok(rec(b, "olga smirnova"))
+    end },
+
+    { "lists that missed each other catch up within minutes, without a reload", function()
+        math.randomseed(10)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        a.ET:AddEnemy("Ivan Petrov")
+        b.ET:AddEnemy("Olga Smirnova")
+        found(a) found(b)
+        mock.mesh(envs(a, b), 30, { dropTo = { [a.env] = true, [b.env] = true } }) -- all lost
+        no(rec(b, "ivan petrov"))
+        mock.mesh(envs(a, b), 320)
+        ok(rec(b, "ivan petrov"), "B caught up")
+        ok(rec(a, "olga smirnova"), "A caught up")
+    end },
+
+    { "once lists match, members stay quiet", function()
+        math.randomseed(11)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        a.ET:AddEnemy("Ivan Petrov")
+        b.ET:AddEnemy("Olga Smirnova")
+        found(a)
+        mock.mesh(envs(a, b), 2)
+        b.ET:JoinGroup(GID)
+        mock.mesh(envs(a, b), 60)
+        eq(a.ET:GroupDigest(GID), b.ET:GroupDigest(GID), "in sync")
+        local sent = 0
+        local function count(env)
+            local orig = env.C_ChatInfo.SendAddonMessageLogged
+            env.C_ChatInfo.SendAddonMessageLogged = function(...) sent = sent + 1 return orig(...) end
+        end
+        count(a.env) count(b.env)
+        mock.mesh(envs(a, b), 600)
+        ok(sent <= 4, "only the periodic checks, got " .. sent)
+    end },
 }

@@ -195,11 +195,21 @@ function ET:PrintGroupDebug()
         local rt = runtime[id] or {}
         local name = ET.GroupChannel(id)
         local index = GetChannelName(name)
-        self:Print(string.format("%s: channel %s #%s ready=%s verified=%s members=%d sent=%d received=%d last=%s",
+        local records = 0
+        for _, r in pairs(g.records) do if not r.del then records = records + 1 end end
+        self:Print(string.format("%s: channel %s #%s ready=%s verified=%s members=%d records=%d sent=%d received=%d last=%s",
             ET.FormatGroupId(id), name, tostring(index), tostring(rt.ready), tostring(g.verified ~= false),
-            self:GroupChannelMembers(id), d.sent[id] or 0, d.received[id] or 0, tostring(d.lastResult[id])))
+            self:GroupChannelMembers(id), records, d.sent[id] or 0, d.received[id] or 0, tostring(d.lastResult[id])))
     end
     if not any then self:Print(L.GROUP_NONE) end
+    -- Entries without a surname cannot be shared (a first name alone is not
+    -- a unique player on Forever).
+    local own, noSurname = 0, 0
+    for _, e in pairs(self.db.enemies) do
+        own = own + 1
+        if e.needsSurname then noSurname = noSurname + 1 end
+    end
+    self:Print(string.format("own=%d notShared(noSurname)=%d", own, noSurname))
     local blocked = C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown()
     self:Print(string.format("blocked=%s waits=%d dropped=%d unmatched=%s", tostring(blocked), d.blocked or 0,
         d.dropped or 0, tostring(d.unmatched)))
