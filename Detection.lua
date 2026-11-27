@@ -41,7 +41,26 @@ function ET:LegacyKeyFor(fullKey)
 end
 
 -- Records that a blacklisted player (by key) is visible right now.
-function ET:MarkSeen(key, seenName, source)
+local FACTIONS = { Alliance = true, Horde = true }
+
+-- Faction of a unit ("Alliance"/"Horde") or nil if unknown or hidden.
+function ET.UnitFaction(unit)
+    if not unit then return nil end
+    local f = UnitFactionGroup(unit)
+    if ET.IsSecret(f) or not FACTIONS[f] then return nil end
+    return f
+end
+
+-- Same faction as the player? Unknown factions count as hostile, so a
+-- player we know nothing about still raises an alert.
+function ET:IsAlly(key)
+    local mine = ET.UnitFaction("player")
+    local d, e = nearby[key], self.db.enemies[key]
+    local theirs = (d and d.faction) or (e and not e.needsSurname and e.faction)
+    return mine ~= nil and theirs == mine
+end
+
+function ET:MarkSeen(key, seenName, source, faction)
     local entry = self.db.enemies[key]
     if not entry then return end
     local now = GetTime()
@@ -54,6 +73,11 @@ function ET:MarkSeen(key, seenName, source)
     end
     d.lastSeen = now
     d.source = source
+    if faction then
+        d.faction = faction
+        -- A legacy record may match a namesake, so it learns nothing.
+        if not entry.needsSurname then entry.faction = faction end
+    end
     -- Prefer the client's own spelling/case of the name.
     local spelled = ET.NormalizeName(seenName)
     if spelled and spelled ~= entry.name and ET.NameKey(spelled) == key then
@@ -71,17 +95,17 @@ function ET:MarkSeen(key, seenName, source)
 end
 
 -- Matches a seen full name against the blacklist; cheap when not listed.
-function ET:ObserveName(name, source)
+function ET:ObserveName(name, source, faction)
     if not scanning() or not name then return end
     local key = ET.NameKey(name)
     if not key then return end
     if self.db.enemies[key] then
-        self:MarkSeen(key, name, source)
+        self:MarkSeen(key, name, source, faction)
         return
     end
     local legacyKey = self:LegacyKeyFor(key)
     if legacyKey then
-        self:MarkSeen(legacyKey, name, source)
+        self:MarkSeen(legacyKey, name, source, faction)
         self:Fire("SURNAME_CANDIDATE", legacyKey, ET.NormalizeName(name))
     end
 end
@@ -90,7 +114,7 @@ end
 function ET:ObserveUnit(unit, source)
     if not scanning() then return end
     local name = ET.PlayerName(unit)
-    if name then self:ObserveName(name, source) end
+    if name then self:ObserveName(name, source, ET.UnitFaction(unit)) end
 end
 
 function ET:ScanAll()

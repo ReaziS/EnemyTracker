@@ -342,6 +342,12 @@ ET:On("POSITIONS_RESET", function()
 end)
 
 ET:On("ENEMY_DETECTED", function(key, entry)
+    -- Players of your own faction stay on the list and are still tracked
+    -- (last seen, detections), but raise no alert or sound.
+    if ET:IsAlly(key) then
+        ET:Debug("ally detected, no alert:", entry.name)
+        return
+    end
     local d = ET.nearby[key]
     ET:Notify(key, d and d.name or entry.name)
 end)
