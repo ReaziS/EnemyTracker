@@ -352,6 +352,19 @@ function M.new(opts)
         s.removedChannels[#s.removedChannels + 1] = { frame = frame, name = name }
     end
 
+    -- Addon messages: sent ones are recorded; M.mesh delivers them.
+    s.addonOut, s.prefixes = {}, {}
+    env.C_ChatInfo = {
+        RegisterAddonMessagePrefix = function(p) s.prefixes[p] = true return true end,
+        SendAddonMessage = function(prefix, text, chatType, target)
+            assert(#text <= 255, "addon message over 255 bytes")
+            if s.addonResult then return s.addonResult end
+            s.addonOut[#s.addonOut + 1] = { prefix = prefix, text = text, chatType = chatType, target = target }
+            return 0
+        end,
+        InChatMessagingLockdown = function() return s.lockdown and true or false end,
+    }
+
     -- Tooltips (retail TooltipDataProcessor, present on Forever)
     s.tooltipPostCalls = {}
     env.Enum = { TooltipDataType = { Unit = 2 } }
@@ -452,6 +465,37 @@ function M.openMenu(env, tag, contextData)
     }
     for _, fn in ipairs(env._state.menus[tag] or {}) do fn(nil, root, contextData) end
     return entries
+end
+
+
+-- Runs several clients side by side for `seconds`, delivering each client's
+-- addon messages on a channel to every other client in that channel, the way
+-- the server relays them. opts.dropTo = { [env] = true } loses their traffic.
+function M.mesh(envs, seconds, opts)
+    opts = opts or {}
+    local step = 0.1
+    for _ = 1, math.floor(seconds / step + 0.5) do
+        for _, env in ipairs(envs) do M.advance(env, step) end
+        for _, from in ipairs(envs) do
+            local out = from._state.addonOut
+            from._state.addonOut = {}
+            local me = from._state.units.player
+            local sender = me.name .. "-" .. me.surname
+            for _, m in ipairs(out) do
+                local channelName
+                for name, index in pairs(from._state.channels) do
+                    if tostring(index) == m.target then channelName = name end
+                end
+                for _, to in ipairs(envs) do
+                    local index = channelName and to._state.channels[channelName]
+                    if to ~= from and index and not (opts.dropTo and opts.dropTo[to]) then
+                        M.fire(to, "CHAT_MSG_ADDON", m.prefix, m.text, "CHANNEL", sender, "", 0, index,
+                            opts.noChannelName and "" or channelName)
+                    end
+                end
+            end
+        end
+    end
 end
 
 return M
