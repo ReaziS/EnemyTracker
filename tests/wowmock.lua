@@ -332,6 +332,26 @@ function M.new(opts)
     env.CHAT_FRAMES = { "ChatFrame1" }
     env.FCF_OpenTemporaryWindow = function() end
 
+    -- Chat channels: joining completes after a short delay, like the client.
+    s.channels, s.removedChannels = {}, {}
+    env.JoinTemporaryChannel = function(name)
+        env.C_Timer.After(0.5, function()
+            if s.channels[name] then return end
+            local n = 0
+            for _ in pairs(s.channels) do n = n + 1 end
+            s.channels[name] = n + 5 -- General, Trade... occupy the low numbers
+        end)
+    end
+    env.GetChannelName = function(name)
+        local i = s.channels[name]
+        if i then return i, name end
+        return 0
+    end
+    env.LeaveChannelByName = function(name) s.channels[name] = nil end
+    env.ChatFrame_RemoveChannel = function(frame, name)
+        s.removedChannels[#s.removedChannels + 1] = { frame = frame, name = name }
+    end
+
     -- Tooltips (retail TooltipDataProcessor, present on Forever)
     s.tooltipPostCalls = {}
     env.Enum = { TooltipDataType = { Unit = 2 } }

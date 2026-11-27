@@ -44,6 +44,18 @@ function ET:HandleSlash(msg)
             name = first .. " " .. second
         end
         if name then self:SetDescription(name, text) else printHelp() end
+    elseif cmd == "group" or cmd == "g" then
+        local sub, arg = rest:match("^(%S*)%s*(.*)$")
+        sub = (sub or ""):lower()
+        if sub == "create" or sub == "new" then
+            self:CreateGroup()
+        elseif sub == "join" and arg ~= "" then
+            self:JoinGroup(arg)
+        elseif sub == "leave" and arg ~= "" then
+            self:LeaveGroup(arg)
+        else
+            self:PrintGroups()
+        end
     elseif cmd == "clear" then
         if rest ~= "" then self:ConfirmClear(rest) else printHelp() end
     elseif cmd == "list" or cmd == "ls" then
