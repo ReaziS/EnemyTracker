@@ -362,6 +362,14 @@ function M.new(opts)
             s.addonOut[#s.addonOut + 1] = { prefix = prefix, text = text, chatType = chatType, target = target }
             return 0
         end,
+        -- Assumed restriction for the test: logged messages must be printable.
+        SendAddonMessageLogged = function(prefix, text, chatType, target)
+            assert(#text <= 255, "addon message over 255 bytes")
+            if s.addonResult then return s.addonResult end
+            if text:find("%c") then return 2 end -- InvalidMessage
+            s.addonOut[#s.addonOut + 1] = { prefix = prefix, text = text, chatType = chatType, target = target, logged = true }
+            return 0
+        end,
         InChatMessagingLockdown = function() return s.lockdown and true or false end,
         AreOutgoingAddonChatMessagesRestricted = function() return s.addonRestricted and true or false end,
     }
@@ -490,7 +498,8 @@ function M.mesh(envs, seconds, opts)
                 for _, to in ipairs(envs) do
                     local index = channelName and to._state.channels[channelName]
                     if to ~= from and index and not (opts.dropTo and opts.dropTo[to]) then
-                        M.fire(to, "CHAT_MSG_ADDON", m.prefix, m.text, "CHANNEL", sender, "", 0, index,
+                        M.fire(to, m.logged and "CHAT_MSG_ADDON_LOGGED" or "CHAT_MSG_ADDON", m.prefix, m.text,
+                            "CHANNEL", sender, "", 0, index,
                             opts.noChannelName and "" or channelName)
                     end
                 end

@@ -34,12 +34,12 @@ end
 
 -- Delivers one raw message to c as if `sender` sent it on the group channel.
 local function inject(c, sender, text)
-    mock.fire(c.env, "CHAT_MSG_ADDON", "ETG1", text, "CHANNEL", sender, "", 0,
+    mock.fire(c.env, "CHAT_MSG_ADDON", "ETG2", text, "CHANNEL", sender, "", 0,
         c.ET.groupRuntime[GID].index, "ET" .. GID)
 end
 
 local function record(at, name, desc, del, by)
-    return "1R" .. table.concat({ at, del and 1 or 0, "H", by or "Bad-Guy", name, desc or "" }, "\t")
+    return "1R" .. table.concat({ at, del and 1 or 0, "H", by or "Bad-Guy", name, desc or "" }, "^")
 end
 
 return {
@@ -137,8 +137,8 @@ return {
         mock.mesh(envs(a, b), 20)
         local answers = 0
         for _, x in ipairs({ a, b }) do
-            local send = x.env.C_ChatInfo.SendAddonMessage
-            x.env.C_ChatInfo.SendAddonMessage = function(prefix, text, ...)
+            local send = x.env.C_ChatInfo.SendAddonMessageLogged
+            x.env.C_ChatInfo.SendAddonMessageLogged = function(prefix, text, ...)
                 if text:sub(2, 2) == "B" then answers = answers + 1 end
                 return send(prefix, text, ...)
             end
@@ -249,7 +249,7 @@ return {
         mock.advance(a.env, 2)
         local now = a.env.time()
         mock.fire(a.env, "CHAT_MSG_ADDON", "OTHER", record(now, "Ivan Petrov"), "CHANNEL", "X-Y", "", 0, 99, "Trade")
-        mock.fire(a.env, "CHAT_MSG_ADDON", "ETG1", record(now, "Ivan Petrov"), "CHANNEL", "X-Y", "", 0, 99, "Trade")
+        mock.fire(a.env, "CHAT_MSG_ADDON", "ETG2", record(now, "Ivan Petrov"), "CHANNEL", "X-Y", "", 0, 99, "Trade")
         inject(a, "Anna-Kova", record(now, "Ivan Petrov"))
         inject(a, mock.SECRET, record(now, "Ivan Petrov"))
         no(rec(a, "ivan petrov"))
@@ -292,5 +292,50 @@ return {
         mock.advance(a.env, 1)
         eq(sentBodies(a.env, "R"), 1, "sent once allowed")
         H.noErrors(a.env)
+    end },
+
+    { "sends with logged addon messages, so reported text can be checked", function()
+        math.randomseed(12)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        found(a)
+        b.ET:JoinGroup(GID)
+        mock.mesh(envs(a, b), 5)
+        local all, logged = 0, 0
+        local send = a.env.C_ChatInfo.SendAddonMessageLogged
+        a.env.C_ChatInfo.SendAddonMessageLogged = function(...)
+            logged = logged + 1
+            return send(...)
+        end
+        local plain = a.env.C_ChatInfo.SendAddonMessage
+        a.env.C_ChatInfo.SendAddonMessage = function(...)
+            all = all + 1
+            return plain(...)
+        end
+        a.ET:AddEnemy("Ivan Petrov")
+        a.ET:SetDescription("Ivan Petrov", "Ganks ^ lowbies | at night")
+        mock.mesh(envs(a, b), 2)
+        ok(logged >= 2)
+        eq(all, 0, "nothing sent unlogged")
+        eq(rec(b, "ivan petrov").description, "Ganks lowbies at night", "separator and escapes stripped")
+        H.noErrors(a.env) H.noErrors(b.env)
+    end },
+
+    { "falls back to plain addon messages when the client lacks the logged one or refuses it", function()
+        math.randomseed(13)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        a.env.C_ChatInfo.SendAddonMessageLogged = nil
+        found(a)
+        a.ET:AddEnemy("Ivan Petrov")
+        b.ET:JoinGroup(GID)
+        mock.mesh(envs(a, b), 20)
+        ok(rec(b, "ivan petrov"), "no logged API: plain messages")
+        local c = client("Vera", "Orlova")
+        found(c)
+        c.env.C_ChatInfo.SendAddonMessageLogged = function() return 2 end -- InvalidMessage
+        mock.advance(c.env, 2)
+        c.env._state.addonOut = {}
+        c.ET:AddEnemy("Olga Smirnova")
+        mock.advance(c.env, 2)
+        eq(sentBodies(c.env, "R"), 1, "refused text goes out unlogged")
     end },
 }

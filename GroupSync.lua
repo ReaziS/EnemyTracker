@@ -11,15 +11,21 @@
 -- a member shared only stops your own tracking. Tombstones expire after
 -- TOMBSTONE_TTL.
 --
--- Protocol (addon messages on the group's hidden channel, prefix "ETG1"):
+-- Protocol (addon messages on the group's hidden channel, prefix "ETG2"):
 --   Q<digest>                 I just connected; my copy has this digest
 --   B<requester>              I am answering <requester>; others stand down
---   R<at>\t<del>\t<fac>\t<by>\t<name>\t<desc>   one record
---   E<requester>\t<digest>    end of my answer; my digest after it
+--   R<at>^<del>^<fac>^<by>^<name>^<desc>   one record
+--   E<requester>^<digest>     end of my answer; my digest after it
 --   W                         anyone here? (sent when joining someone's group)
 --   H                         here (answer to W)
 -- A body longer than one message is split into "P<id>:<i>:<n>:<chunk>" parts;
 -- a body that fits is sent as "1<body>".
+--
+-- Messages go out with SendAddonMessageLogged when the client has it (Forever
+-- does): Blizzard made it for player-written text, so descriptions can be
+-- checked by support if someone reports them. Receivers get those as
+-- CHAT_MSG_ADDON_LOGGED. Fields are separated by "^" rather than a tab so the
+-- text stays printable; "^" and "|" are stripped from descriptions.
 --
 -- Protection against a member (or anyone who learned the ID) flooding us:
 -- a per-sender message budget with a temporary mute, one answered request per
@@ -27,8 +33,8 @@
 -- of records per group.
 local _, ET = ...
 
-local PREFIX = "ETG1"
-local SEP = "\t"
+local PREFIX = "ETG2"
+local SEP = "^"
 local MAX_MSG = 250                     -- client limit is 255 bytes
 local SEND_INTERVAL = 0.3               -- seconds between our messages
 local MAX_RECORDS = 2000                -- per group
@@ -42,6 +48,7 @@ local PART_TTL = 30
 local PROBE_TIMEOUT = 15                -- seconds to wait for a member when joining
 local PING_COOLDOWN = 10
 local RETRY_RESULTS = { [3] = true, [8] = true } -- AddonMessageThrottle, ChannelThrottle
+local INVALID_MESSAGE = 2                        -- Enum.SendAddonMessageResult.InvalidMessage
 
 ET.GROUP_MAX_RECORDS = MAX_RECORDS
 ET.GROUP_PREFIX = PREFIX
@@ -77,7 +84,7 @@ function ET:GroupDigest(id)
 end
 
 local function cleanDescription(s)
-    s = s:gsub("|", ""):gsub("%c", " "):gsub("%s+", " ")
+    s = s:gsub("[|%^]", ""):gsub("%c", " "):gsub("%s+", " ")
     return ET.Utf8Truncate(ET.Trim(s), ET.DESCRIPTION_MAX)
 end
 
@@ -177,7 +184,19 @@ local function sendNext()
         table.remove(queue, 1)
         return
     end
-    local result = C_ChatInfo.SendAddonMessage(PREFIX, item.text, "CHANNEL", tostring(rt.index))
+    local result
+    local logged = C_ChatInfo.SendAddonMessageLogged
+    if logged and not item.plain then
+        result = logged(PREFIX, item.text, "CHANNEL", tostring(rt.index))
+        if result == INVALID_MESSAGE then
+            -- The logged variant refused this text; send it unlogged instead.
+            ET:Debug("logged addon message refused, sending unlogged")
+            item.plain = true
+            return
+        end
+    else
+        result = C_ChatInfo.SendAddonMessage(PREFIX, item.text, "CHANNEL", tostring(rt.index))
+    end
     if type(result) == "number" and RETRY_RESULTS[result] and item.tries < 5 then
         item.tries = item.tries + 1
         return
@@ -204,7 +223,7 @@ end
 local function encodeRecord(rec)
     return "R" .. table.concat({
         rec.at, rec.del and 1 or 0, FACTION_CODE[rec.faction or ""] or "-", rec.by or "",
-        rec.name, rec.del and "" or (rec.description or ""):gsub("|", ""),
+        rec.name, rec.del and "" or (rec.description or ""):gsub("[|%^]", ""),
     }, SEP)
 end
 
@@ -223,7 +242,7 @@ end
 -- Receiving
 -------------------------------------------------------------------------------
 local function decodeRecord(body)
-    local at, del, fac, by, name, desc = body:match("^R(%d+)\t([01])\t([AH%-])\t([^\t]*)\t([^\t]+)\t(.*)$")
+    local at, del, fac, by, name, desc = body:match("^R(%d+)%^([01])%^([AH%-])%^([^%^]*)%^([^%^]+)%^(.*)$")
     at = tonumber(at)
     if not at or at < 1e9 or at > time() + FUTURE_SLACK then return nil end
     name = ET.NormalizeName(name)
@@ -296,7 +315,7 @@ handlers.R = function(id, sender, body)
 end
 
 handlers.E = function(id, sender, body)
-    local requester, digest = body:match("^E([^\t]+)\t(.+)$")
+    local requester, digest = body:match("^E([^%^]+)%^(.+)$")
     local rt = runtime[id]
     if not requester or ET.NameKey(requester) ~= ET.NameKey(myName()) or rt.synced then return end
     rt.synced = true
@@ -387,6 +406,7 @@ end
 
 C_ChatInfo.RegisterAddonMessagePrefix(PREFIX)
 ET:RegisterEvent("CHAT_MSG_ADDON", function(_, ...) ET:OnGroupMessage(...) end)
+ET:RegisterEvent("CHAT_MSG_ADDON_LOGGED", function(_, ...) ET:OnGroupMessage(...) end)
 
 ET:On("DB_READY", function()
     local now = time()
