@@ -163,22 +163,45 @@ function ET:EnemyCount()
 end
 
 -- Adds a player. Returns true on success; prints feedback unless quiet.
-function ET:AddEnemy(name, quiet)
+-- Checks a name for adding: valid "First Surname", not yourself, not listed.
+-- Returns the normalised name and its key, or nil (with feedback unless quiet).
+function ET:CheckNewName(name, quiet)
     local input = ET.Trim(type(name) == "string" and name or "")
     name = ET.NormalizeName(input)
     if not ET.IsValidName(name) then
         if not quiet then self:Print(string.format(L.INVALID_NAME, input)) end
-        return false
+        return nil
     end
     local key = ET.NameKey(name)
     if ET.IsSelfName(name) then
         if not quiet then self:Print(L.CANT_ADD_SELF) end
-        return false
+        return nil
     end
     if self.db.enemies[key] then
         if not quiet then self:Print(string.format(L.ALREADY, self.db.enemies[key].name)) end
-        return false
+        return nil
     end
+    return name, key
+end
+
+-- Adds a typed name (dashboard Add, /et add Name). There is no global
+-- player search on Forever, and /who only lists your own faction, so the
+-- name is checked against players the client reported this session (units,
+-- nameplates, chat authors). An unseen name is added only after the user
+-- confirms. Returns true (added), "pending" (asking) or false.
+function ET:AddEnemyManual(name)
+    local checked = self:CheckNewName(name)
+    if not checked then return false end
+    if self:IsKnownName(checked) then return self:AddEnemy(checked) end
+    StaticPopup_Show("ENEMYTRACKER_CONFIRM_UNSEEN", string.format(L.CONFIRM_UNSEEN, ET.DisplayName(checked)),
+        nil, checked)
+    return "pending"
+end
+
+function ET:AddEnemy(name, quiet)
+    local key
+    name, key = self:CheckNewName(name, quiet)
+    if not name then return false end
     local entry = {
         id = ET.NewId(),
         name = ET.DisplayName(name),
@@ -302,6 +325,17 @@ end)
 -------------------------------------------------------------------------------
 -- Confirmation dialogs (irreversible actions)
 -------------------------------------------------------------------------------
+StaticPopupDialogs["ENEMYTRACKER_CONFIRM_UNSEEN"] = {
+    text = "%s",
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function(_, data) ET:AddEnemy(data) end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
 StaticPopupDialogs["ENEMYTRACKER_CONFIRM_SURNAME"] = {
     text = "%s",
     button1 = YES,

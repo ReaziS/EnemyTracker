@@ -148,12 +148,12 @@ local function create()
     searchBox:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
 
     -- Add
-    addBox = makeEditBox(frame, 130)
+    addBox = makeEditBox(frame, 130, "EnemyTrackerDashboardAddBox")
     addBox:SetPoint("LEFT", searchBox, "RIGHT", 30, 0)
     local addBtn = makeButton(frame, L.BTN_ADD, 80)
     addBtn:SetPoint("LEFT", addBox, "RIGHT", 6, 0)
     local function doAdd()
-        if ET:AddEnemy(addBox:GetText()) then addBox:SetText("") end
+        if ET:AddEnemyManual(addBox:GetText()) then addBox:SetText("") end
         addBox:ClearFocus()
     end
     addBtn:SetScript("OnClick", doAdd)

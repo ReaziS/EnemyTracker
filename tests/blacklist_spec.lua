@@ -5,6 +5,7 @@ return {
     { "adds a player with /et add and rejects a case-insensitive duplicate", function()
         local ET, env = H.boot()
         H.slash(env, "add Gorbash Grimfang")
+        H.mock.acceptPopup(env) -- not seen this session: confirm
         ok(ET:GetEnemy("gorbash grimfang"), "added")
         H.slash(env, "add GORBASH GRIMFANG")
         eq(ET:EnemyCount(), 1)

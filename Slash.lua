@@ -26,7 +26,7 @@ function ET:HandleSlash(msg)
     rest = ET.Trim(rest or "")
 
     if cmd == "add" or cmd == "a" then
-        if rest == "" then self:AddTarget() else self:AddEnemy(rest) end
+        if rest == "" then self:AddTarget() else self:AddEnemyManual(rest) end
     elseif cmd == "addtarget" or cmd == "at" then
         self:AddTarget()
     elseif cmd == "remove" or cmd == "rm" or cmd == "del" then

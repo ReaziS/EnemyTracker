@@ -20,6 +20,7 @@ local L = {
 
     ADDED = "%s added to the blacklist.",
     ALREADY = "%s is already in the blacklist.",
+    CONFIRM_UNSEEN = "%s has not been seen in this session (nearby, in your group or in chat), so the name cannot be confirmed. Check the spelling.\n\nAdd anyway?",
     INVALID_NAME = "Invalid character name: \"%s\". Enter the full name: First Surname (2-12 letters each).",
     NO_TARGET = "Target a player first (or use /et add First Surname).",
     TARGET_NOT_PLAYER = "Your target is not a player.",
@@ -168,6 +169,7 @@ if GetLocale() == "ruRU" then
 
         ADDED = "%s добавлен в чёрный список.",
         ALREADY = "%s уже в чёрном списке.",
+        CONFIRM_UNSEEN = "%s не встречался в этой сессии (рядом, в группе или в чате), поэтому имя нельзя подтвердить. Проверьте написание.\n\nВсё равно добавить?",
         INVALID_NAME = "Некорректное имя персонажа: «%s». Введите полное имя: Имя Фамилия (по 2-12 букв).",
         NO_TARGET = "Сначала выберите игрока целью (или /et add Имя Фамилия).",
         TARGET_NOT_PLAYER = "Цель не является игроком.",

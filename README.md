@@ -14,7 +14,7 @@ Turn on **enemy nameplates** (`V`, or Options > Interface > Names). Nameplates a
 
 | Command | Action |
 |---|---|
-| `/et add First Surname` | Add a player by full name (also `First-Surname`) |
+| `/et add First Surname` | Add a player by full name (also `First-Surname`). If the client has not reported that player this session (nearby, group, chat), the addon warns and asks before adding |
 | `/et add` | Add your current target (also `/et addtarget`) |
 | Right-click a player | Add to / remove from Enemy Tracker. Works on unit frames, target frame, party/raid frames and names in chat |
 | `/et remove First Surname` | Remove a player, after confirmation. Deletes their stats too |
@@ -90,6 +90,7 @@ Interface number, Lua version and menu API come from other Forever addons' publi
 8. **Adding your current target** detects them right away, if they're in range, so you get an alert immediately. That's expected.
 9. Scope: data is shared across your account. Statistics count kills by whichever of your characters is logged in.
 10. **Red flag coverage.** Chat and unit tooltips use documented, taint-free hooks. Party/raid frames and the who list are Blizzard frames whose name text is (or may be) a hidden value on Forever; changing them needs in-game verification first, so they are not flagged yet. The chat flag is an `addon:` hyperlink; if a Forever build does not support that link type, clicking it may do nothing.
+11. **Checking that a typed name exists.** Forever has no global player search, and `/who` only lists players of your own faction, so enemies cannot be looked up. A typed name is confirmed only if the client reported that player during this session (units, nameplates, group, chat authors); otherwise the addon asks before adding it. Adding your target or from the right-click menu needs no check.
 
 ## Tests
 

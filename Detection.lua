@@ -110,11 +110,32 @@ function ET:ObserveName(name, source, faction)
     end
 end
 
+-------------------------------------------------------------------------------
+-- Names seen this session (any player, listed or not). Used to confirm that a
+-- manually typed name really exists before adding it. Bounded in size.
+-------------------------------------------------------------------------------
+local seenNames, seenCount = {}, 0
+local SEEN_MAX = 3000
+
+function ET:RememberName(name)
+    local key = ET.NameKey(name)
+    if not key or seenNames[key] then return end
+    if seenCount >= SEEN_MAX then wipe(seenNames); seenCount = 0 end
+    seenNames[key] = true
+    seenCount = seenCount + 1
+end
+
+function ET:IsKnownName(name)
+    local key = ET.NameKey(name)
+    return key ~= nil and seenNames[key] == true
+end
+
 -- Checks a unit token.
 function ET:ObserveUnit(unit, source)
-    if not scanning() then return end
     local name = ET.PlayerName(unit)
-    if name then self:ObserveName(name, source, ET.UnitFaction(unit)) end
+    if not name then return end
+    self:RememberName(name)
+    if scanning() then self:ObserveName(name, source, ET.UnitFaction(unit)) end
 end
 
 function ET:ScanAll()
@@ -209,6 +230,17 @@ ET:RegisterEvent("NAME_PLATE_UNIT_ADDED", function(_, unit)
     ET:ObserveUnit(unit, "nameplate")
     C_Timer.After(PLATE_RECHECK, function() ET:ObserveUnit(unit, "nameplate") end)
 end)
+-- Chat authors count as "seen" for the existence check (not for detection:
+-- a whisper or a channel message says nothing about distance).
+local function rememberAuthor(_, _, author)
+    if not ET.IsSecret(author) and type(author) == "string" then ET:RememberName(author) end
+end
+for _, event in ipairs({ "CHAT_MSG_SAY", "CHAT_MSG_YELL", "CHAT_MSG_WHISPER", "CHAT_MSG_PARTY",
+    "CHAT_MSG_PARTY_LEADER", "CHAT_MSG_RAID", "CHAT_MSG_RAID_LEADER", "CHAT_MSG_GUILD",
+    "CHAT_MSG_CHANNEL", "CHAT_MSG_EMOTE" }) do
+    ET:RegisterEvent(event, rememberAuthor)
+end
+
 -- A group member changed target: check it now instead of on the next tick.
 ET:RegisterEvent("UNIT_TARGET", function(_, unit)
     local t = targetOf[unit]
