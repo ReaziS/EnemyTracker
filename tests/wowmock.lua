@@ -296,8 +296,11 @@ function M.new(opts)
     env.YES, env.NO = "Yes", "No"
     env.StaticPopupDialogs = {}
     env.StaticPopup_Show = function(which, text1, text2, data)
-        s.popups[#s.popups + 1] = { which = which, text = text1, data = data }
+        local d = env.StaticPopupDialogs[which]
+        s.popups[#s.popups + 1] = { which = which, text = text1, data = data,
+            button1 = d and d.button1, button2 = d and d.button2 }
     end
+    env.ReloadUI = function() s.reloaded = true end
 
     -- Settings panel (retail API, present on Forever)
     env.Settings = {

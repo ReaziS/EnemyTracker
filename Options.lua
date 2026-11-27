@@ -191,6 +191,29 @@ local function build()
     local testNote = button(panel, L.OPT_TEST_NOTE, 150)
     testNote:SetPoint("TOPLEFT", rx + 4, ry)
     testNote:SetScript("OnClick", function() ET:TestDescriptionNote() end)
+    ry = ry - 44
+
+    -- Addon language; switching offers a reload so every window follows.
+    local langHeader = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    langHeader:SetPoint("TOPLEFT", rx, ry)
+    langHeader:SetText(L.OPT_LANGUAGE)
+    ry = ry - 24
+    local langPrev = button(panel, "<", 26)
+    langPrev:SetPoint("TOPLEFT", rx, ry + 4)
+    local langText = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    langText:SetPoint("LEFT", langPrev, "RIGHT", 8, 0)
+    langText:SetWidth(150)
+    local langNext = button(panel, ">", 26)
+    langNext:SetPoint("LEFT", langText, "RIGHT", 8, 0)
+    local function stepLanguage(dir)
+        local list, idx = ET.LANGUAGES, 1
+        for i, v in ipairs(list) do if v == S().language then idx = i end end
+        ET:SetLanguage(list[(idx - 1 + dir) % #list + 1])
+    end
+    langPrev:SetScript("OnClick", function() stepLanguage(-1) end)
+    langNext:SetScript("OnClick", function() stepLanguage(1) end)
+    panel.langNext, panel.langText = langNext, langText
+    addRefresher(function() langText:SetText(L["LANG_" .. tostring(S().language)] or tostring(S().language)) end)
 
     panel:SetScript("OnShow", refreshAll)
 

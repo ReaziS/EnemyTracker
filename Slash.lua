@@ -58,6 +58,10 @@ function ET:HandleSlash(msg)
         else
             self:ToggleGroupsPanel()
         end
+    elseif cmd == "lang" or cmd == "language" then
+        local codes = { auto = "auto", en = "enUS", enus = "enUS", ru = "ruRU", ruru = "ruRU" }
+        local code = codes[rest:lower()]
+        if code then self:SetLanguage(code) else self:Print(L.LANG_USAGE) end
     elseif cmd == "clear" then
         if rest ~= "" then self:ConfirmClear(rest) else printHelp() end
     elseif cmd == "list" or cmd == "ls" then

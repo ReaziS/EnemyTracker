@@ -46,6 +46,7 @@ local DEFAULT_SETTINGS = {
     noteCorner = "BOTTOMRIGHT",
     noteScale = 1.0,
     noteDuration = 10,          -- seconds, 0 = until clicked
+    language = "auto",          -- "auto" (game client), "enUS", "ruRU"
 }
 
 local function applyDefaults(target, defaults)
@@ -206,7 +207,7 @@ function ET:AddEnemyManual(name)
     local checked = self:CheckNewName(name)
     if not checked then return false end
     if self:IsKnownName(checked) then return self:AddEnemy(checked) end
-    StaticPopup_Show("ENEMYTRACKER_CONFIRM_UNSEEN", string.format(L.CONFIRM_UNSEEN, ET.DisplayName(checked)),
+    ET:ShowPopup("ENEMYTRACKER_CONFIRM_UNSEEN", string.format(L.CONFIRM_UNSEEN, ET.DisplayName(checked)),
         nil, checked)
     return "pending"
 end
@@ -331,7 +332,7 @@ ET:On("SURNAME_CANDIDATE", function(legacyKey, fullName)
     if askedSurname[id] then return end
     askedSurname[id] = true
     local e = ET.db.enemies[legacyKey]
-    StaticPopup_Show("ENEMYTRACKER_CONFIRM_SURNAME", string.format(L.SURNAME_CONFIRM, e.name, fullName), nil,
+    ET:ShowPopup("ENEMYTRACKER_CONFIRM_SURNAME", string.format(L.SURNAME_CONFIRM, e.name, fullName), nil,
         { key = legacyKey, name = fullName })
 end)
 
@@ -340,8 +341,6 @@ end)
 -------------------------------------------------------------------------------
 StaticPopupDialogs["ENEMYTRACKER_CONFIRM_UNSEEN"] = {
     text = "%s",
-    button1 = YES,
-    button2 = NO,
     OnAccept = function(_, data) ET:AddEnemy(data) end,
     timeout = 0,
     whileDead = true,
@@ -351,8 +350,6 @@ StaticPopupDialogs["ENEMYTRACKER_CONFIRM_UNSEEN"] = {
 
 StaticPopupDialogs["ENEMYTRACKER_CONFIRM_SURNAME"] = {
     text = "%s",
-    button1 = YES,
-    button2 = NO,
     OnAccept = function(_, data) ET:CompleteSurname(data.key, data.name) end,
     -- Only an explicit "No" rejects; closing for other reasons asks again later.
     OnCancel = function(_, data, reason)
@@ -366,8 +363,6 @@ StaticPopupDialogs["ENEMYTRACKER_CONFIRM_SURNAME"] = {
 
 StaticPopupDialogs["ENEMYTRACKER_CONFIRM_REMOVE"] = {
     text = "%s",
-    button1 = YES,
-    button2 = NO,
     OnAccept = function(_, data) ET:RemoveEnemy(data) end,
     timeout = 0,
     whileDead = true,
@@ -377,8 +372,6 @@ StaticPopupDialogs["ENEMYTRACKER_CONFIRM_REMOVE"] = {
 
 StaticPopupDialogs["ENEMYTRACKER_CONFIRM_CLEAR"] = {
     text = "%s",
-    button1 = YES,
-    button2 = NO,
     OnAccept = function(_, data) ET:ClearStats(data) end,
     timeout = 0,
     whileDead = true,
@@ -392,7 +385,7 @@ function ET:ConfirmRemove(name)
         self:Print(string.format(L.NOT_FOUND, tostring(name)))
         return
     end
-    StaticPopup_Show("ENEMYTRACKER_CONFIRM_REMOVE", string.format(L.CONFIRM_REMOVE, entry.name), nil, entry.name)
+    ET:ShowPopup("ENEMYTRACKER_CONFIRM_REMOVE", string.format(L.CONFIRM_REMOVE, entry.name), nil, entry.name)
 end
 
 function ET:ConfirmClear(name)
@@ -401,5 +394,5 @@ function ET:ConfirmClear(name)
         self:Print(string.format(L.NOT_FOUND, tostring(name)))
         return
     end
-    StaticPopup_Show("ENEMYTRACKER_CONFIRM_CLEAR", string.format(L.CONFIRM_CLEAR, entry.name), nil, entry.name)
+    ET:ShowPopup("ENEMYTRACKER_CONFIRM_CLEAR", string.format(L.CONFIRM_CLEAR, entry.name), nil, entry.name)
 end

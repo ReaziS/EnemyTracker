@@ -1,7 +1,10 @@
--- Enemy Tracker: localisation (enUS default, ruRU override).
+-- Enemy Tracker: localisation. English is complete and the fallback; Russian
+-- overrides it. The language follows the game client unless chosen in the
+-- options or with /et lang; ET.L is filled in place, so modules may keep a
+-- reference to it.
 local _, ET = ...
 
-local L = {
+local EN = {
     ALERT_TITLE = "Nemesis detected!",
     ALERT_CLICK = "Click to target",
     ALERT_COMBAT = "In combat: click after combat to target",
@@ -66,6 +69,17 @@ local L = {
     BTN_CREATE_GROUP = "Create group",
     BTN_JOIN = "Join",
     GROUP_ID_LABEL = "Group ID:",
+    YES = "Yes",
+    NO = "No",
+    OPT_LANGUAGE = "Language",
+    LANG_auto = "Auto (game)",
+    LANG_enUS = "English",
+    LANG_ruRU = "Русский",
+    LANG_SET = "Language: %s.",
+    LANG_RELOAD = "Reload the interface so every window shows the new language?",
+    LANG_USAGE = "Usage: /et lang auto | en | ru",
+    BTN_RELOAD = "Reload",
+    BTN_LATER = "Later",
     DESC_HINT = "Only what they did in the game: no insults and no personal information. Your groups see it.",
     BTN_LEAVE = "Leave",
     BTN_ADD_TO_MINE = "Add to my list",
@@ -85,6 +99,7 @@ local L = {
         "/et clear First Surname - clear kill statistics of a player",
         "/et note First Surname [text] - set the player's description (no text = clear)",
         "/et group [create | join ID | leave ID | list] - shared groups (no argument = window)",
+        "/et lang auto | en | ru - addon language",
         "/et list - print the blacklist",
         "/et show - open the dashboard",
         "/et on | off | toggle - enable/disable scanning",
@@ -179,180 +194,247 @@ local L = {
     MOVER_COUNTER = "Counter",
 }
 
-if GetLocale() == "ruRU" then
-    local R = {
-        ALERT_TITLE = "Обнаружен заклятый враг!",
-        ALERT_CLICK = "Нажмите, чтобы взять в цель",
-        ALERT_COMBAT = "В бою: нажмите после боя, чтобы взять в цель",
-        ALERT_UNTARGETABLE = "Выбор цели недоступен",
-        TEST_NAME = "Тестовый",
+local RU = {
+    ALERT_TITLE = "Обнаружен заклятый враг!",
+    ALERT_CLICK = "Нажмите, чтобы взять в цель",
+    ALERT_COMBAT = "В бою: нажмите после боя, чтобы взять в цель",
+    ALERT_UNTARGETABLE = "Выбор цели недоступен",
+    TEST_NAME = "Тестовый",
 
-        COUNTER = "Врагов рядом: %d",
-        COUNTER_TIP = "Нажмите, чтобы открыть список обнаруженных сейчас врагов.",
-        NEARBY_TITLE = "Обнаружены сейчас",
-        NEARBY_EMPTY = "Никого не обнаружено",
+    COUNTER = "Врагов рядом: %d",
+    COUNTER_TIP = "Нажмите, чтобы открыть список обнаруженных сейчас врагов.",
+    NEARBY_TITLE = "Обнаружены сейчас",
+    NEARBY_EMPTY = "Никого не обнаружено",
 
-        NEVER = "никогда",
-        JUST_NOW = "только что",
-        MIN_AGO = "%d мин назад",
-        HOURS_AGO = "%d ч назад",
+    NEVER = "никогда",
+    JUST_NOW = "только что",
+    MIN_AGO = "%d мин назад",
+    HOURS_AGO = "%d ч назад",
 
-        ADDED = "%s добавлен в чёрный список.",
-        ALREADY = "%s уже в чёрном списке.",
-        CONFIRM_UNSEEN = "%s не встречался в этой сессии (рядом, в группе или в чате), поэтому имя нельзя подтвердить. Проверьте написание.\n\nВсё равно добавить?",
-        INVALID_NAME = "Некорректное имя персонажа: «%s». Введите полное имя: Имя Фамилия (по 2-12 букв).",
-        NO_TARGET = "Сначала выберите игрока целью (или /et add Имя Фамилия).",
-        TARGET_NOT_PLAYER = "Цель не является игроком.",
-        CANT_ADD_SELF = "Нельзя добавить самого себя.",
-        REMOVED = "%s удалён из чёрного списка.",
-        NOT_FOUND = "%s нет в чёрном списке.",
-        STATS_CLEARED = "Статистика %s очищена.",
-        CONFIRM_REMOVE = "Удалить %s из чёрного списка?\nВся статистика по игроку будет удалена.",
-        CONFIRM_CLEAR = "Очистить статистику убийств %s?\n(Игрок останется в списке; «замечен» сохранится.)",
-        SCAN_ON = "Сканирование включено.",
-        SCAN_OFF = "Сканирование выключено.",
-        UNLOCKED = "Рамки разблокированы: перетащите якоря уведомлений и счётчика, затем /et lock.",
-        LOCKED = "Рамки заблокированы.",
-        POS_RESET = "Положение сброшено.",
-        DEBUG_ON = "Диагностический лог включён.",
-        DEBUG_OFF = "Диагностический лог выключен.",
-        COMBAT_BLOCKED = "Недоступно в бою; повторите после боя.",
-        KILLED_BY = "%s убил вас (засчитано).",
-        YOU_KILLED = "Вы убили %s (засчитано).",
-        LIST_HEADER = "Чёрный список (%d):",
-        LIST_EMPTY = "Чёрный список пуст.",
-        GROUP_CREATED = "Группа создана: %s. Дайте этот ID тем, кому доверяете: по нему можно войти и видеть общий список.",
-        GROUP_JOINED = "Вы вошли в группу %s. Списки передаются между участниками онлайн.",
-        GROUP_CHECKING = "Ищу группу %s...",
-        GROUP_CHECKING_SHORT = "проверка...",
-        GROUP_NOT_FOUND = "Группа %s не найдена: никого из неё нет онлайн. Проверьте ID или попробуйте, когда кто-то из участников будет в игре.",
-        GROUP_LEFT = "Вы вышли из группы %s.",
-        GROUP_BAD_ID = "Неверный ID группы: «%s» (ожидается ET-XXXX-XXXX-XXXX). Проверьте, нет ли опечатки.",
-        GROUP_ALREADY = "Вы уже в группе %s.",
-        GROUP_NOT_MEMBER = "Вы не состоите в группе %s.",
-        GROUP_LIMIT = "Можно состоять не более чем в %d группах (каждая занимает слот канала чата).",
-        GROUP_JOIN_FAILED = "Не удалось открыть канал группы %s. Выйдите из какого-нибудь канала чата и сделайте /reload.",
-        GROUP_NONE = "Вы не состоите в группах. /et group create или /et group join ID.",
-        GROUP_LIST_HEADER = "Ваши группы:",
-        GROUP_OWNER = "(создана вами)",
-        GROUP_ONLINE = "подключена",
-        GROUP_CONNECTING = "подключение...",
-        GROUPS_TITLE = "Enemy Tracker - группы",
-        GROUPS_HINT = "Участники делятся именами, фракциями и описаниями. Щёлкните по ID и нажмите Ctrl+C, чтобы скопировать.",
-        GROUP_SLOT_INFO = "%s, игроков: %d",
-        GROUP_SLOT_EMPTY = "свободный слот",
-        BTN_GROUPS = "Группы",
-        BTN_CREATE_GROUP = "Создать группу",
-        BTN_JOIN = "Вступить",
-        GROUP_ID_LABEL = "ID группы:",
-        DESC_HINT = "Только о том, что игрок делал в игре: без оскорблений и личных данных. Это видят ваши группы.",
-        BTN_LEAVE = "Выйти",
-        BTN_ADD_TO_MINE = "В мой список",
-        FROM_GROUP = "из группы",
-        SHARED_BY = "Добавил(а): %s",
-        TOTAL_SHARED = "Мои: %d   Из групп: %d   Показано: %d",
-        DESC_SAVED = "Описание %s сохранено.",
-        DESC_CLEARED = "Описание %s очищено.",
-        SURNAME_CONFIRM = "Enemy Tracker: в чёрном списке есть «%s» без фамилии (сохранено старой версией).\nЭто игрок %s?",
-        SURNAME_COMPLETED = "%s: фамилия добавлена, статистика сохранена.",
-        SURNAME_REJECTED = "%s больше не будет сопоставляться с «%s».",
-        NO_SURNAME = "(без фамилии)",
+    ADDED = "%s добавлен в чёрный список.",
+    ALREADY = "%s уже в чёрном списке.",
+    CONFIRM_UNSEEN = "%s не встречался в этой сессии (рядом, в группе или в чате), поэтому имя нельзя подтвердить. Проверьте написание.\n\nВсё равно добавить?",
+    INVALID_NAME = "Некорректное имя персонажа: «%s». Введите полное имя: Имя Фамилия (по 2-12 букв).",
+    NO_TARGET = "Сначала выберите игрока целью (или /et add Имя Фамилия).",
+    TARGET_NOT_PLAYER = "Цель не является игроком.",
+    CANT_ADD_SELF = "Нельзя добавить самого себя.",
+    REMOVED = "%s удалён из чёрного списка.",
+    NOT_FOUND = "%s нет в чёрном списке.",
+    STATS_CLEARED = "Статистика %s очищена.",
+    CONFIRM_REMOVE = "Удалить %s из чёрного списка?\nВся статистика по игроку будет удалена.",
+    CONFIRM_CLEAR = "Очистить статистику убийств %s?\n(Игрок останется в списке; «замечен» сохранится.)",
+    SCAN_ON = "Сканирование включено.",
+    SCAN_OFF = "Сканирование выключено.",
+    UNLOCKED = "Рамки разблокированы: перетащите якоря уведомлений и счётчика, затем /et lock.",
+    LOCKED = "Рамки заблокированы.",
+    POS_RESET = "Положение сброшено.",
+    DEBUG_ON = "Диагностический лог включён.",
+    DEBUG_OFF = "Диагностический лог выключен.",
+    COMBAT_BLOCKED = "Недоступно в бою; повторите после боя.",
+    KILLED_BY = "%s убил вас (засчитано).",
+    YOU_KILLED = "Вы убили %s (засчитано).",
+    LIST_HEADER = "Чёрный список (%d):",
+    LIST_EMPTY = "Чёрный список пуст.",
+    GROUP_CREATED = "Группа создана: %s. Дайте этот ID тем, кому доверяете: по нему можно войти и видеть общий список.",
+    GROUP_JOINED = "Вы вошли в группу %s. Списки передаются между участниками онлайн.",
+    GROUP_CHECKING = "Ищу группу %s...",
+    GROUP_CHECKING_SHORT = "проверка...",
+    GROUP_NOT_FOUND = "Группа %s не найдена: никого из неё нет онлайн. Проверьте ID или попробуйте, когда кто-то из участников будет в игре.",
+    GROUP_LEFT = "Вы вышли из группы %s.",
+    GROUP_BAD_ID = "Неверный ID группы: «%s» (ожидается ET-XXXX-XXXX-XXXX). Проверьте, нет ли опечатки.",
+    GROUP_ALREADY = "Вы уже в группе %s.",
+    GROUP_NOT_MEMBER = "Вы не состоите в группе %s.",
+    GROUP_LIMIT = "Можно состоять не более чем в %d группах (каждая занимает слот канала чата).",
+    GROUP_JOIN_FAILED = "Не удалось открыть канал группы %s. Выйдите из какого-нибудь канала чата и сделайте /reload.",
+    GROUP_NONE = "Вы не состоите в группах. /et group create или /et group join ID.",
+    GROUP_LIST_HEADER = "Ваши группы:",
+    GROUP_OWNER = "(создана вами)",
+    GROUP_ONLINE = "подключена",
+    GROUP_CONNECTING = "подключение...",
+    GROUPS_TITLE = "Enemy Tracker - группы",
+    GROUPS_HINT = "Участники делятся именами, фракциями и описаниями. Щёлкните по ID и нажмите Ctrl+C, чтобы скопировать.",
+    GROUP_SLOT_INFO = "%s, игроков: %d",
+    GROUP_SLOT_EMPTY = "свободный слот",
+    BTN_GROUPS = "Группы",
+    BTN_CREATE_GROUP = "Создать группу",
+    BTN_JOIN = "Вступить",
+    GROUP_ID_LABEL = "ID группы:",
+    YES = "Да",
+    NO = "Нет",
+    OPT_LANGUAGE = "Язык",
+    LANG_auto = "Авто (как в игре)",
+    LANG_SET = "Язык: %s.",
+    LANG_RELOAD = "Перезагрузить интерфейс, чтобы все окна были на новом языке?",
+    LANG_USAGE = "Использование: /et lang auto | en | ru",
+    BTN_RELOAD = "Перезагрузить",
+    BTN_LATER = "Позже",
+    DESC_HINT = "Только о том, что игрок делал в игре: без оскорблений и личных данных. Это видят ваши группы.",
+    BTN_LEAVE = "Выйти",
+    BTN_ADD_TO_MINE = "В мой список",
+    FROM_GROUP = "из группы",
+    SHARED_BY = "Добавил(а): %s",
+    TOTAL_SHARED = "Мои: %d   Из групп: %d   Показано: %d",
+    DESC_SAVED = "Описание %s сохранено.",
+    DESC_CLEARED = "Описание %s очищено.",
+    SURNAME_CONFIRM = "Enemy Tracker: в чёрном списке есть «%s» без фамилии (сохранено старой версией).\nЭто игрок %s?",
+    SURNAME_COMPLETED = "%s: фамилия добавлена, статистика сохранена.",
+    SURNAME_REJECTED = "%s больше не будет сопоставляться с «%s».",
+    NO_SURNAME = "(без фамилии)",
 
-        HELP = {
-            "/et add [Имя Фамилия] - добавить игрока (без имени - текущая цель)",
-            "/et remove Имя Фамилия - удалить игрока (с подтверждением)",
-            "/et clear Имя Фамилия - очистить статистику игрока",
-            "/et note Имя Фамилия [текст] - описание игрока (без текста - очистить)",
-            "/et group [create | join ID | leave ID | list] - общие группы (без аргумента - окно)",
-            "/et list - вывести чёрный список",
-            "/et show - открыть Dashboard",
-            "/et on | off | toggle - включить/выключить сканирование",
-            "/et unlock | lock - перемещение уведомлений и счётчика",
-            "/et resetpos - сбросить положение рамок",
-            "/et test - тестовое уведомление",
-            "/et options - открыть настройки",
-            "/et debug - вкл/выкл диагностический лог",
-        },
+    HELP = {
+        "/et add [Имя Фамилия] - добавить игрока (без имени - текущая цель)",
+        "/et remove Имя Фамилия - удалить игрока (с подтверждением)",
+        "/et clear Имя Фамилия - очистить статистику игрока",
+        "/et note Имя Фамилия [текст] - описание игрока (без текста - очистить)",
+        "/et group [create | join ID | leave ID | list] - общие группы (без аргумента - окно)",
+    "/et lang auto | en | ru - язык аддона",
+        "/et list - вывести чёрный список",
+        "/et show - открыть Dashboard",
+        "/et on | off | toggle - включить/выключить сканирование",
+        "/et unlock | lock - перемещение уведомлений и счётчика",
+        "/et resetpos - сбросить положение рамок",
+        "/et test - тестовое уведомление",
+        "/et options - открыть настройки",
+        "/et debug - вкл/выкл диагностический лог",
+    },
 
-        DASH_TITLE = "Enemy Tracker - заклятые враги",
-        COL_NAME = "Имя",
-        COL_KILLED_ME = "Убил меня",
-        COL_I_KILLED = "Я убил",
-        COL_LAST_SEEN = "Замечен",
-        COL_ADDED = "Добавлен",
-        COL_DETECTIONS = "Обнаруж.",
-        SEARCH = "Поиск:",
-        BTN_ADD = "Добавить",
-        BTN_ADD_TARGET = "Добавить цель",
-        BTN_CLEAR = "Очистить стат.",
-        BTN_REMOVE = "Удалить",
-        BTN_SAVE = "Сохранить",
-        DESCRIPTION = "Описание:",
-        SCANNING = "Сканирование",
-        STATS_NOTE = "Убийства учитываются только при подтверждении журналом боя (смертельный удар).",
-        STATS_UNAVAILABLE = "Клиент не даёт аддонам доступ к журналу боя, поэтому статистика убийств не ведётся.",
-        OPT_COMBATLOG_UNAVAILABLE = "(недоступно в этом клиенте)",
+    DASH_TITLE = "Enemy Tracker - заклятые враги",
+    COL_NAME = "Имя",
+    COL_KILLED_ME = "Убил меня",
+    COL_I_KILLED = "Я убил",
+    COL_LAST_SEEN = "Замечен",
+    COL_ADDED = "Добавлен",
+    COL_DETECTIONS = "Обнаруж.",
+    SEARCH = "Поиск:",
+    BTN_ADD = "Добавить",
+    BTN_ADD_TARGET = "Добавить цель",
+    BTN_CLEAR = "Очистить стат.",
+    BTN_REMOVE = "Удалить",
+    BTN_SAVE = "Сохранить",
+    DESCRIPTION = "Описание:",
+    SCANNING = "Сканирование",
+    STATS_NOTE = "Убийства учитываются только при подтверждении журналом боя (смертельный удар).",
+    STATS_UNAVAILABLE = "Клиент не даёт аддонам доступ к журналу боя, поэтому статистика убийств не ведётся.",
+    OPT_COMBATLOG_UNAVAILABLE = "(недоступно в этом клиенте)",
 
-        MINIMAP_TIP_LEFT = "ЛКМ: Dashboard",
-        MINIMAP_TIP_RIGHT = "ПКМ: настройки",
-        MINIMAP_TIP_DRAG = "Перетаскивание: переместить кнопку",
+    MINIMAP_TIP_LEFT = "ЛКМ: Dashboard",
+    MINIMAP_TIP_RIGHT = "ПКМ: настройки",
+    MINIMAP_TIP_DRAG = "Перетаскивание: переместить кнопку",
 
-        MENU_ADD = "Добавить в Enemy Tracker",
-        MENU_REMOVE = "Удалить из Enemy Tracker",
+    MENU_ADD = "Добавить в Enemy Tracker",
+    MENU_REMOVE = "Удалить из Enemy Tracker",
 
-        OPT_SCAN = "Включить сканирование",
-        OPT_VISUAL = "Визуальные уведомления",
-        OPT_SOUND = "Звуковые уведомления",
-        OPT_SCALE = "Размер уведомления",
-        OPT_AUTOHIDE = "Скрывать уведомление через (сек, 0 = никогда)",
-        OPT_SOUND_CHOICE = "Звук:",
-        OPT_CHANNEL = "Звуковой канал:",
-        OPT_TEST_SOUND = "Проверить звук",
-        OPT_TEST_ALERT = "Тест уведомления",
-        OPT_VOLUME_NOTE = "WoW не позволяет задать громкость отдельного звука. Уведомление играет в выбранном " ..
-            "канале; громкость определяется громкостью канала в Меню > Система > Звук (сейчас %d%%).",
-        OPT_COUNTER = "Показывать счётчик врагов рядом",
-        OPT_FLAGS = "Красный флажок у игроков из списка в чате и подсказках",
-        FLAG_TOOLTIP = "Enemy Tracker: в вашем чёрном списке",
-        FLAG_NO_DESCRIPTION = "В вашем чёрном списке (без описания).",
-        OPT_MINIMAP = "Показывать кнопку у мини-карты",
-        OPT_COMBATLOG = "Использовать журнал боя как источник обнаружения",
-        OPT_GROUP = "Использовать членов группы и их цели как источник обнаружения",
-        OPT_LOCK = "Заблокировать рамки (снимите, чтобы перемещать)",
-        OPT_RESETPOS = "Сбросить положение",
-        OPT_DEBUG = "Диагностический лог",
-        OPT_NOTE_HEADER = "Заметка с описанием",
-        OPT_NOTE = "Показывать описание при обнаружении врага",
-        OPT_NOTE_CORNER = "Угол:",
-        OPT_NOTE_SCALE = "Размер заметки",
-        OPT_NOTE_DURATION = "Показывать (сек, 0 = до клика)",
-        OPT_TEST_NOTE = "Тест заметки",
-        NOTE_TEST_TEXT = "Пример: караулит распорядителя полётов в Перекрёстке.",
-        CORNER_BOTTOMRIGHT = "Справа внизу",
-        CORNER_BOTTOMLEFT = "Слева внизу",
-        CORNER_TOPRIGHT = "Справа вверху",
-        CORNER_TOPLEFT = "Слева вверху",
-        OPT_DETECTION_NOTE = "Источники: таблички имён (включите их), цель, mouseover, фокус, члены группы и их " ..
-            "цели, журнал боя поблизости. Игроков, о которых клиент не сообщает, обнаружить нельзя.",
+    OPT_SCAN = "Включить сканирование",
+    OPT_VISUAL = "Визуальные уведомления",
+    OPT_SOUND = "Звуковые уведомления",
+    OPT_SCALE = "Размер уведомления",
+    OPT_AUTOHIDE = "Скрывать уведомление через (сек, 0 = никогда)",
+    OPT_SOUND_CHOICE = "Звук:",
+    OPT_CHANNEL = "Звуковой канал:",
+    OPT_TEST_SOUND = "Проверить звук",
+    OPT_TEST_ALERT = "Тест уведомления",
+    OPT_VOLUME_NOTE = "WoW не позволяет задать громкость отдельного звука. Уведомление играет в выбранном " ..
+        "канале; громкость определяется громкостью канала в Меню > Система > Звук (сейчас %d%%).",
+    OPT_COUNTER = "Показывать счётчик врагов рядом",
+    OPT_FLAGS = "Красный флажок у игроков из списка в чате и подсказках",
+    FLAG_TOOLTIP = "Enemy Tracker: в вашем чёрном списке",
+    FLAG_NO_DESCRIPTION = "В вашем чёрном списке (без описания).",
+    OPT_MINIMAP = "Показывать кнопку у мини-карты",
+    OPT_COMBATLOG = "Использовать журнал боя как источник обнаружения",
+    OPT_GROUP = "Использовать членов группы и их цели как источник обнаружения",
+    OPT_LOCK = "Заблокировать рамки (снимите, чтобы перемещать)",
+    OPT_RESETPOS = "Сбросить положение",
+    OPT_DEBUG = "Диагностический лог",
+    OPT_NOTE_HEADER = "Заметка с описанием",
+    OPT_NOTE = "Показывать описание при обнаружении врага",
+    OPT_NOTE_CORNER = "Угол:",
+    OPT_NOTE_SCALE = "Размер заметки",
+    OPT_NOTE_DURATION = "Показывать (сек, 0 = до клика)",
+    OPT_TEST_NOTE = "Тест заметки",
+    NOTE_TEST_TEXT = "Пример: караулит распорядителя полётов в Перекрёстке.",
+    CORNER_BOTTOMRIGHT = "Справа внизу",
+    CORNER_BOTTOMLEFT = "Слева внизу",
+    CORNER_TOPRIGHT = "Справа вверху",
+    CORNER_TOPLEFT = "Слева вверху",
+    OPT_DETECTION_NOTE = "Источники: таблички имён (включите их), цель, mouseover, фокус, члены группы и их " ..
+        "цели, журнал боя поблизости. Игроков, о которых клиент не сообщает, обнаружить нельзя.",
 
-        CHANNEL_Master = "Общий",
-        CHANNEL_SFX = "Эффекты",
-        CHANNEL_Music = "Музыка",
-        CHANNEL_Ambience = "Окружение",
-        CHANNEL_Dialog = "Диалоги",
+    CHANNEL_Master = "Общий",
+    CHANNEL_SFX = "Эффекты",
+    CHANNEL_Music = "Музыка",
+    CHANNEL_Ambience = "Окружение",
+    CHANNEL_Dialog = "Диалоги",
 
-        SOUND_RAID_WARNING = "Объявление рейду",
-        SOUND_READY_CHECK = "Проверка готовности",
-        SOUND_RAID_BOSS_EMOTE_WARNING = "Эмоция босса",
-        SOUND_ALARM_CLOCK_WARNING_3 = "Будильник",
-        SOUND_PVP_THROUGH_QUEUE = "Очередь PvP",
-        SOUND_IG_PLAYER_INVITE = "Приглашение",
-        SOUND_TELL_MESSAGE = "Шёпот",
+    SOUND_RAID_WARNING = "Объявление рейду",
+    SOUND_READY_CHECK = "Проверка готовности",
+    SOUND_RAID_BOSS_EMOTE_WARNING = "Эмоция босса",
+    SOUND_ALARM_CLOCK_WARNING_3 = "Будильник",
+    SOUND_PVP_THROUGH_QUEUE = "Очередь PvP",
+    SOUND_IG_PLAYER_INVITE = "Приглашение",
+    SOUND_TELL_MESSAGE = "Шёпот",
 
-        MOVER_ALERTS = "Уведомления Enemy Tracker",
-        MOVER_COUNTER = "Счётчик",
-    }
-    for k, v in pairs(R) do L[k] = v end
+    MOVER_ALERTS = "Уведомления Enemy Tracker",
+    MOVER_COUNTER = "Счётчик",
+}
+
+local LOCALES = { enUS = EN, ruRU = RU }
+ET._locales = LOCALES -- for tests
+ET.LANGUAGES = { "auto", "enUS", "ruRU" }
+
+local L = {}
+ET.L = L
+
+-- Language actually used for a setting ("auto" = the game client's).
+function ET.ResolveLanguage(setting)
+    if LOCALES[setting] then return setting end
+    return LOCALES[GetLocale()] and GetLocale() or "enUS"
 end
 
-ET.L = L
+-- Refills ET.L for the given setting. Text already on screen keeps the old
+-- language until it is drawn again (a /reload redraws everything).
+function ET.ApplyLanguage(setting)
+    local code = ET.ResolveLanguage(setting)
+    wipe(L)
+    for k, v in pairs(EN) do L[k] = v end
+    if code ~= "enUS" then
+        for k, v in pairs(LOCALES[code]) do L[k] = v end
+    end
+    ET.language = code
+end
+
+ET.ApplyLanguage("auto") -- until the saved setting is known
+
+-- Runs before every other module's DB_READY handler (Locale loads second),
+-- so the options panel and all later frames are built in the chosen language.
+ET:On("DB_READY", function()
+    ET.ApplyLanguage(ET.db.settings and ET.db.settings.language)
+end)
+
+-- Shows one of our popups with buttons in the addon's language rather than
+-- the client's.
+function ET:ShowPopup(which, text, text2, data, button1, button2)
+    local d = StaticPopupDialogs[which]
+    d.button1, d.button2 = button1 or L.YES, button2 or L.NO
+    return StaticPopup_Show(which, text, text2, data)
+end
+
+StaticPopupDialogs["ENEMYTRACKER_RELOAD"] = {
+    text = "%s",
+    OnAccept = function() ReloadUI() end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+-- Sets the addon language ("auto", "enUS", "ruRU"). Messages switch at once;
+-- windows already drawn switch after a reload, which the popup offers.
+function ET:SetLanguage(setting)
+    if setting ~= "auto" and not LOCALES[setting] then return false end
+    self.db.settings.language = setting
+    ET.ApplyLanguage(setting)
+    self:Fire("SETTINGS_CHANGED", "language")
+    self:Print(string.format(L.LANG_SET, L["LANG_" .. setting]))
+    self:ShowPopup("ENEMYTRACKER_RELOAD", L.LANG_RELOAD, nil, nil, L.BTN_RELOAD, L.BTN_LATER)
+    return true
+end
