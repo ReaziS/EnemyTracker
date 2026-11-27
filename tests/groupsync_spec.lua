@@ -338,4 +338,68 @@ return {
         mock.advance(c.env, 2)
         eq(sentBodies(c.env, "R"), 1, "refused text goes out unlogged")
     end },
+
+    { "falls back to plain messages when logged ones are refused on channels", function()
+        math.randomseed(3)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        a.ET:AddEnemy("Ivan Petrov")
+        found(a)
+        mock.mesh(envs(a, b), 2)
+        a.env._state.loggedResult, b.env._state.loggedResult = 4, 4 -- InvalidChatType
+        b.ET:JoinGroup(GID)
+        mock.mesh(envs(a, b), 20)
+        ok(b.ET.db.groups[GID], "group found")
+        ok(rec(b, "ivan petrov"), "list arrived")
+    end },
+
+    { "matches the channel when the client reports it as a numbered name", function()
+        math.randomseed(4)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        a.ET:AddEnemy("Ivan Petrov")
+        found(a)
+        mock.mesh(envs(a, b), 2, { numbered = true })
+        b.ET:JoinGroup(GID)
+        mock.mesh(envs(a, b), 20, { numbered = true })
+        ok(b.ET.db.groups[GID], "group found")
+        ok(rec(b, "ivan petrov"), "list arrived")
+    end },
+
+    { "the join check waits while messages are blocked", function()
+        math.randomseed(5)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        found(a)
+        mock.mesh(envs(a, b), 2)
+        b.env._state.lockdown = true
+        b.ET:JoinGroup(GID)
+        mock.mesh(envs(a, b), 40)
+        ok(b.ET.db.groups[GID], "not declared missing while nothing could be asked")
+        no(H.chatContains(b.env, b.ET.L.GROUP_NOT_FOUND:format("ET-7KQM-X2PV-9HRB")))
+        b.env._state.lockdown = false
+        mock.mesh(envs(a, b), 10)
+        ok(b.ET.db.groups[GID].verified ~= false, "confirmed once the question went out")
+    end },
+
+    { "keeps a group whose channel has players even if nobody answers", function()
+        local b = client("Boris", "Lebed")
+        b.ET:JoinGroup(GID)
+        mock.advance(b.env, 1)
+        b.env._state.channelMembers[b.ET.groupRuntime[GID].index] = 3
+        mock.mesh({ b.env }, 30)
+        ok(b.ET.db.groups[GID], "kept")
+        ok(b.ET.db.groups[GID].verified ~= false)
+        ok(H.chatContains(b.env, b.ET.L.GROUP_NO_ANSWER:format("ET-7KQM-X2PV-9HRB", 2)))
+    end },
+
+    { "/et group debug reports channel, counters and the player's realm", function()
+        math.randomseed(6)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        found(a)
+        mock.mesh(envs(a, b), 2)
+        b.ET:JoinGroup(GID)
+        mock.mesh(envs(a, b), 20)
+        H.slash(b.env, "group debug")
+        ok(H.chatContains(b.env, "Forever"), "realm")
+        ok(H.chatContains(b.env, "channel ET7KQMX2PV9HRB"), "channel name")
+        no(H.chatContains(b.env, "received=0"), "answers were counted")
+    end },
 }

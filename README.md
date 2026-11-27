@@ -25,6 +25,7 @@ Turn on **enemy nameplates** (`V`, or Options > Interface > Names). Nameplates a
 | `/et group create` | Create a shared group and print its ID (`ET-XXXX-XXXX-XXXX`) |
 | `/et group join ID`, `/et group leave ID` | Join or leave a group by ID (any case, dashes and spaces optional) |
 | `/et group list` | Print your groups and their state |
+| `/et group debug` | Print what is needed to find why groups do not connect: your realm and faction, each group's channel number and players in it, messages sent and received, the last send result |
 | `/et show` | Open or close the dashboard (or left-click the minimap skull) |
 | `/et on`, `/et off`, `/et toggle` | Turn scanning on or off. It's on by default |
 | `/et unlock`, `/et lock` | Move the alert anchor and the counter |

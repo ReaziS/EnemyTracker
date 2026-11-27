@@ -351,6 +351,10 @@ function M.new(opts)
         return 0
     end
     env.LeaveChannelByName = function(name) s.channels[name] = nil end
+    -- s.channelMembers[index] = n: players in a channel (unset: unknown, 0).
+    s.channelMembers = {}
+    env.GetNumChannelMembers = function(index) return s.channelMembers[index] or 0 end
+    env.GetRealmName = function() return "Forever" end
     env.ChatFrame_RemoveChannel = function(frame, name)
         s.removedChannels[#s.removedChannels + 1] = { frame = frame, name = name }
     end
@@ -369,6 +373,7 @@ function M.new(opts)
         SendAddonMessageLogged = function(prefix, text, chatType, target)
             assert(#text <= 255, "addon message over 255 bytes")
             if s.addonResult then return s.addonResult end
+            if s.loggedResult then return s.loggedResult end -- only the logged variant fails
             if text:find("%c") then return 2 end -- InvalidMessage
             s.addonOut[#s.addonOut + 1] = { prefix = prefix, text = text, chatType = chatType, target = target, logged = true }
             return 0
@@ -501,9 +506,12 @@ function M.mesh(envs, seconds, opts)
                 for _, to in ipairs(envs) do
                     local index = channelName and to._state.channels[channelName]
                     if to ~= from and index and not (opts.dropTo and opts.dropTo[to]) then
+                        -- opts.numbered: the client reports "6. ETXXXX" and no
+                        -- local ID; only the target names the channel.
+                        local target = opts.numbered and (index .. ". " .. channelName) or ""
                         M.fire(to, m.logged and "CHAT_MSG_ADDON_LOGGED" or "CHAT_MSG_ADDON", m.prefix, m.text,
-                            "CHANNEL", sender, "", 0, index,
-                            opts.noChannelName and "" or channelName)
+                            "CHANNEL", sender, target, 0, (not opts.numbered) and index or nil,
+                            (opts.noChannelName or opts.numbered) and "" or channelName)
                     end
                 end
             end

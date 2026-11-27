@@ -55,6 +55,8 @@ function ET:HandleSlash(msg)
             self:LeaveGroup(arg)
         elseif sub == "list" then
             self:PrintGroups()
+        elseif sub == "debug" then
+            self:PrintGroupDebug()
         else
             self:ToggleGroupsPanel()
         end

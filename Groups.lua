@@ -164,8 +164,44 @@ end
 function ET:GroupNotFound(id)
     local g = self.db.groups[id]
     if not g or g.verified ~= false then return end
+    -- Others are in the channel but do not answer: the group exists, they
+    -- just lack the addon (or run an old version). Keep it.
+    local others = self:GroupChannelMembers(id) - 1
+    if others > 0 then
+        self:Print(string.format(L.GROUP_NO_ANSWER, ET.FormatGroupId(id), others))
+        self:ConfirmGroup(id)
+        return
+    end
     self:Print(string.format(L.GROUP_NOT_FOUND, ET.FormatGroupId(id)))
     self:LeaveGroup(id, true)
+end
+
+-- How many players are in the group's channel (0 when unknown).
+function ET:GroupChannelMembers(id)
+    local rt = runtime[id]
+    if not (rt and rt.index and GetNumChannelMembers) then return 0 end
+    local ok, n = pcall(GetNumChannelMembers, rt.index)
+    return (ok and type(n) == "number" and not ET.IsSecret(n)) and n or 0
+end
+
+-- /et group debug: everything needed to tell where messages get lost.
+function ET:PrintGroupDebug()
+    local d = ET.groupDiag or { sent = {}, received = {}, lastResult = {} }
+    self:Print(string.format("%s, %s-%s, %s", ET.version or "?", tostring(ET.PlayerName("player")),
+        tostring(GetRealmName and GetRealmName()), tostring(ET.UnitFaction("player"))))
+    local any = false
+    for id, g in pairs(self.db.groups) do
+        any = true
+        local rt = runtime[id] or {}
+        local name = ET.GroupChannel(id)
+        local index = GetChannelName(name)
+        self:Print(string.format("%s: channel %s #%s ready=%s verified=%s members=%d sent=%d received=%d last=%s",
+            ET.FormatGroupId(id), name, tostring(index), tostring(rt.ready), tostring(g.verified ~= false),
+            self:GroupChannelMembers(id), d.sent[id] or 0, d.received[id] or 0, tostring(d.lastResult[id])))
+    end
+    if not any then self:Print(L.GROUP_NONE) end
+    local blocked = C_ChatInfo.InChatMessagingLockdown and C_ChatInfo.InChatMessagingLockdown()
+    self:Print(string.format("blocked=%s waits=%d unmatched=%s", tostring(blocked), d.blocked or 0, tostring(d.unmatched)))
 end
 
 function ET:LeaveGroup(input, quiet)

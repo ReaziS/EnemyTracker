@@ -50,6 +50,14 @@ local PING_COOLDOWN = 10
 local RETRY_RESULTS = { [3] = true, [8] = true } -- AddonMessageThrottle, ChannelThrottle
 local INVALID_MESSAGE = 2                        -- Enum.SendAddonMessageResult.InvalidMessage
 
+-- Counters for /et group debug: what was sent, what came back, what was dropped.
+local diag = { sent = {}, received = {}, lastResult = {}, unmatched = nil, blocked = 0 }
+ET.groupDiag = diag
+
+local function succeeded(result)
+    return result == nil or result == true or result == 0
+end
+
 ET.GROUP_MAX_RECORDS = MAX_RECORDS
 ET.GROUP_PREFIX = PREFIX
 
@@ -178,7 +186,7 @@ local function sendNext()
         if ticker then ticker:Cancel() ticker = nil end
         return
     end
-    if outgoingBlocked() then return end
+    if outgoingBlocked() then diag.blocked = diag.blocked + 1 return end
     local rt = runtime[item.id]
     if not (rt and rt.ready and ET.db.groups[item.id]) then
         table.remove(queue, 1)
@@ -188,9 +196,11 @@ local function sendNext()
     local logged = C_ChatInfo.SendAddonMessageLogged
     if logged and not item.plain then
         result = logged(PREFIX, item.text, "CHANNEL", tostring(rt.index))
-        if result == INVALID_MESSAGE then
-            -- The logged variant refused this text; send it unlogged instead.
-            ET:Debug("logged addon message refused, sending unlogged")
+        if not succeeded(result) and not RETRY_RESULTS[result] then
+            -- The logged variant refused this message (the text, or logged
+            -- messages on channels at all); send it unlogged instead.
+            ET:Debug("logged addon message refused (" .. tostring(result) .. "), sending unlogged")
+            diag.lastResult[item.id] = "logged:" .. tostring(result)
             item.plain = true
             return
         end
@@ -202,9 +212,14 @@ local function sendNext()
         return
     end
     table.remove(queue, 1)
+    diag.lastResult[item.id] = (item.plain and "plain:" or "") .. tostring(result == nil and "ok" or result)
+    if succeeded(result) then
+        diag.sent[item.id] = (diag.sent[item.id] or 0) + 1
+        if item.onSent then item.onSent() end
+    end
 end
 
-local function send(id, body)
+local function send(id, body, onSent)
     local texts
     if #body + 1 <= MAX_MSG then
         texts = { "1" .. body }
@@ -217,6 +232,7 @@ local function send(id, body)
         end
     end
     for _, t in ipairs(texts) do queue[#queue + 1] = { id = id, text = t, tries = 0 } end
+    queue[#queue].onSent = onSent
     if not ticker then ticker = C_Timer.NewTicker(SEND_INTERVAL, sendNext) end
 end
 
@@ -365,11 +381,22 @@ local function collect(s, text)
     return table.concat(p, "", 1, n)
 end
 
+-- The channel arrives as a name ("ETXXXX" or "6. ETXXXX") or as its local
+-- number, depending on the client; accept all of them.
 local function groupOf(target, localID, channelName)
-    local id = ET:GroupByChannel(channelName) or ET:GroupByChannel(target)
-    if id then return id end
-    for gid, rt in pairs(runtime) do
-        if rt.ready and rt.index == localID and ET.db.groups[gid] then return gid end
+    for _, v in ipairs({ channelName, target }) do
+        if type(v) == "string" then
+            local id = ET:GroupByChannel(v) or ET:GroupByChannel(v:match("^%d+%.%s*(.+)$"))
+            if id then return id end
+        end
+    end
+    for _, v in ipairs({ localID, target }) do
+        local n = tonumber(v)
+        if n then
+            for gid, rt in pairs(runtime) do
+                if rt.ready and rt.index == n and ET.db.groups[gid] then return gid end
+            end
+        end
     end
 end
 
@@ -379,7 +406,11 @@ function ET:OnGroupMessage(prefix, text, channel, sender, target, _, localID, ch
     end
     if prefix ~= PREFIX or channel ~= "CHANNEL" or type(text) ~= "string" or type(sender) ~= "string" then return end
     local id = groupOf(target, localID, channelName)
-    if not id then return end
+    if not id then
+        diag.unmatched = string.format("%s / %s / %s", tostring(target), tostring(localID), tostring(channelName))
+        return
+    end
+    diag.received[id] = (diag.received[id] or 0) + 1
     local senderKey = ET.NameKey(sender)
     if senderKey == ET.NameKey(myName()) then return end
     local s = allow(senderKey)
@@ -435,8 +466,11 @@ ET:On("GROUP_READY", function(id)
     local rt = runtime[id]
     rt.synced, rt.pending = false, {}
     if ET.db.groups[id].verified == false then
-        send(id, "W")
-        C_Timer.After(PROBE_TIMEOUT, function() ET:GroupNotFound(id) end)
+        -- The wait starts once the question has really left: while messages
+        -- are blocked (combat, battlegrounds) nobody could have answered.
+        send(id, "W", function()
+            C_Timer.After(PROBE_TIMEOUT, function() ET:GroupNotFound(id) end)
+        end)
     end
     send(id, "Q" .. ET:GroupDigest(id))
 end)
