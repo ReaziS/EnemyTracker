@@ -13,6 +13,7 @@ Sound.lua
 Detection.lua
 Stats.lua
 Notifications.lua
+DescriptionNote.lua
 Counter.lua
 Dashboard.lua
 MinimapButton.lua

@@ -86,15 +86,15 @@ local function button(parent, text, w)
 end
 
 -- "< value >" selector, avoids dropdown APIs that differ between clients.
-local function cycler(parent, x, y, label, getItems, key, labelOf)
+local function cycler(parent, x, y, label, getItems, key, labelOf, labelW, valueW)
     local title = parent:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     title:SetPoint("TOPLEFT", x, y)
     title:SetText(label)
     local prev = button(parent, "<", 26)
-    prev:SetPoint("TOPLEFT", x + 130, y + 4)
+    prev:SetPoint("TOPLEFT", x + (labelW or 130), y + 4)
     local valueText = parent:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     valueText:SetPoint("LEFT", prev, "RIGHT", 8, 0)
-    valueText:SetWidth(150)
+    valueText:SetWidth(valueW or 150)
     local nextB = button(parent, ">", 26)
     nextB:SetPoint("LEFT", valueText, "RIGHT", 8, 0)
     local function step(dir)
@@ -174,6 +174,22 @@ local function build()
     note:SetWidth(560)
     note:SetJustifyH("LEFT")
     note:SetText(L.OPT_DETECTION_NOTE)
+
+    -- Right column: corner note with the player's description.
+    local rx, ry = 360, -48
+    local header = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    header:SetPoint("TOPLEFT", rx, ry)
+    header:SetText(L.OPT_NOTE_HEADER)
+    ry = ry - 22
+    checkbox(panel, rx - 4, ry, L.OPT_NOTE, "noteEnabled"); ry = ry - 36
+    cycler(panel, rx, ry, L.OPT_NOTE_CORNER, function() return ET.NOTE_CORNERS end, "noteCorner",
+        function(c) return L["CORNER_" .. tostring(c)] or tostring(c) end, 90, 110)
+    ry = ry - 36
+    slider(panel, rx + 4, ry, L.OPT_NOTE_SCALE, "noteScale", 0.5, 2.0, 0.05, "%.2f"); ry = ry - 56
+    slider(panel, rx + 4, ry, L.OPT_NOTE_DURATION, "noteDuration", 0, 60, 1, "%d"); ry = ry - 40
+    local testNote = button(panel, L.OPT_TEST_NOTE, 150)
+    testNote:SetPoint("TOPLEFT", rx + 4, ry)
+    testNote:SetScript("OnClick", function() ET:TestDescriptionNote() end)
 
     panel:SetScript("OnShow", refreshAll)
 

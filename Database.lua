@@ -41,6 +41,10 @@ local DEFAULT_SETTINGS = {
     useGroupTargets = true,
     locked = true,
     debug = false,
+    noteEnabled = true,         -- corner note with the player's description
+    noteCorner = "BOTTOMRIGHT",
+    noteScale = 1.0,
+    noteDuration = 10,          -- seconds, 0 = until clicked
 }
 
 local function applyDefaults(target, defaults)
