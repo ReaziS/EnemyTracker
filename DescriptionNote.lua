@@ -114,13 +114,15 @@ ET:On("LOGIN", function()
 end)
 
 ET:On("DB_READY", function()
+    local mode = S().alertMode
+    if mode ~= "enemies" and mode ~= "all" and mode ~= "none" then S().alertMode = "enemies" end
     local valid = false
     for _, c in ipairs(ET.NOTE_CORNERS) do if S().noteCorner == c then valid = true end end
     if not valid then S().noteCorner = ET.NOTE_CORNERS[1] end
 end)
 
 ET:On("ENEMY_DETECTED", function(key, entry)
-    if not S().noteEnabled or ET:IsAlly(key) then return end
+    if not S().noteEnabled or not ET:ShouldAlert(key) then return end
     local desc = ET:DescriptionOf(key)
     if desc == "" then return end
     local d = ET.nearby[key]

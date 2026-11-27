@@ -121,7 +121,10 @@ local function build()
     local y = -48
     checkbox(panel, 16, y, L.OPT_SCAN, "scanEnabled", function(v) ET:SetScanning(v) end); y = y - 28
     checkbox(panel, 16, y, L.OPT_VISUAL, "visual"); y = y - 28
-    checkbox(panel, 16, y, L.OPT_SOUND, "sound"); y = y - 40
+    checkbox(panel, 16, y, L.OPT_SOUND, "sound"); y = y - 32
+    cycler(panel, 20, y, L.OPT_ALERT_MODE, function() return ET.ALERT_MODES end, "alertMode",
+        function(m) return L["ALERT_MODE_" .. tostring(m)] or tostring(m) end)
+    y = y - 40
 
     slider(panel, 20, y, L.OPT_SCALE, "scale", 0.5, 2.0, 0.05, "%.2f"); y = y - 56
     slider(panel, 20, y, L.OPT_AUTOHIDE, "autoHide", 0, 120, 5, "%d"); y = y - 56

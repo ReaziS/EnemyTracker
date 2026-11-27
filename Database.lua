@@ -31,6 +31,7 @@ local DEFAULT_SETTINGS = {
     scanEnabled = true,
     visual = true,
     sound = true,
+    alertMode = "enemies",      -- who raises alerts: "enemies" (other faction), "all", "none"
     soundKey = "RAID_WARNING",
     soundChannel = "Master",
     scale = 1.0,

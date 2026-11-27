@@ -279,6 +279,11 @@ function M.new(opts)
         local u = U(unit)
         if u and u.faction then return u.faction, u.faction end
     end
+    env.UnitIsFriend = function(a, b)
+        local u = a == "player" and U(b) or U(a)
+        if u and u.secretFriend then return M.SECRET end
+        return u ~= nil and u.friendly == true
+    end
     env.UnitIsVisible = function(unit) local u = U(unit); return u ~= nil and u.visible ~= false end
     env.UnitIsUnit = function(a, b) return U(a) ~= nil and U(a) == U(b) end
     env.C_PlayerInfo = { ShouldDisplaySurname = function() return true end }

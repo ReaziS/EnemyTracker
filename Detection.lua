@@ -51,16 +51,40 @@ function ET.UnitFaction(unit)
     return f
 end
 
--- Same faction as the player? Unknown factions count as hostile, so a
--- player we know nothing about still raises an alert.
+-- The client says this unit is friendly to us (nil if unknown or hidden).
+-- Only a hint for when the faction itself is unknown: a player of the other
+-- faction is never friendly, while one of ours may be hostile in a duel.
+local function unitFriendly(unit)
+    if not UnitIsFriend then return nil end
+    local ok, f = pcall(UnitIsFriend, "player", unit)
+    if not ok or ET.IsSecret(f) then return nil end
+    return f == true or nil
+end
+
+-- Same faction as the player? A player of unknown faction counts as hostile,
+-- so one we know nothing about still raises an alert, unless the client said
+-- they are friendly.
 function ET:IsAlly(key)
     local mine = ET.UnitFaction("player")
     local d, e = nearby[key], self:GetTracked(key)
     local theirs = (d and d.faction) or (e and not e.needsSurname and e.faction)
-    return mine ~= nil and theirs == mine
+    if theirs then return mine ~= nil and theirs == mine end
+    return d ~= nil and d.friendly == true
 end
 
-function ET:MarkSeen(key, seenName, source, faction)
+ET.ALERT_MODES = { "enemies", "all", "none" }
+
+-- Whether seeing this listed player raises an alert (toast, sound, chat line,
+-- description note). "enemies": only players of the other faction; players
+-- of ours stay listed, counted and flagged, but quiet.
+function ET:ShouldAlert(key)
+    local mode = self.db.settings.alertMode
+    if mode == "none" then return false end
+    if mode == "all" then return true end
+    return not self:IsAlly(key)
+end
+
+function ET:MarkSeen(key, seenName, source, faction, friendly)
     local entry = self:GetTracked(key)
     if not entry then return end
     local now = GetTime()
@@ -73,6 +97,7 @@ function ET:MarkSeen(key, seenName, source, faction)
     end
     d.lastSeen = now
     d.source = source
+    if friendly then d.friendly = true end
     if faction then
         d.faction = faction
         -- A legacy record may match a namesake, so it learns nothing.
@@ -95,17 +120,17 @@ function ET:MarkSeen(key, seenName, source, faction)
 end
 
 -- Matches a seen full name against the blacklist; cheap when not listed.
-function ET:ObserveName(name, source, faction)
+function ET:ObserveName(name, source, faction, friendly)
     if not scanning() or not name then return end
     local key = ET.NameKey(name)
     if not key then return end
     if self:GetTracked(key) then
-        self:MarkSeen(key, name, source, faction)
+        self:MarkSeen(key, name, source, faction, friendly)
         return
     end
     local legacyKey = self:LegacyKeyFor(key)
     if legacyKey then
-        self:MarkSeen(legacyKey, name, source, faction)
+        self:MarkSeen(legacyKey, name, source, faction, friendly)
         self:Fire("SURNAME_CANDIDATE", legacyKey, ET.NormalizeName(name))
     end
 end
@@ -135,7 +160,9 @@ function ET:ObserveUnit(unit, source)
     local name = ET.PlayerName(unit)
     if not name then return end
     self:RememberName(name)
-    if scanning() then self:ObserveName(name, source, ET.UnitFaction(unit)) end
+    if not scanning() then return end
+    local faction = ET.UnitFaction(unit)
+    self:ObserveName(name, source, faction, not faction and unitFriendly(unit) or nil)
 end
 
 function ET:ScanAll()

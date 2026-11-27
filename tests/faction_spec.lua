@@ -103,4 +103,63 @@ return {
         ok(seen["gorbash grimfang"]:find(ET.L.NEVER, 1, true))
         ok(seen["olga smirnova"]:find(ET.L.NEVER, 1, true), "unknown faction still shows the time")
     end },
+
+    { "enemies only (default): an ally is flagged and counted but stays quiet", function()
+        local ET, env = H.boot({ player = ALLIANCE_ME })
+        eq(ET.db.settings.alertMode, "enemies", "default")
+        ET:AddEnemy("Anna Lightway")
+        ET:SetDescription("Anna Lightway", "Steals herbs")
+        H.target(env, player("Anna Lightway", "Alliance"))
+        no(env.EnemyTrackerAlert1:IsShown(), "no toast")
+        eq(#env._state.sounds, 0, "no sound")
+        no(env.EnemyTrackerNote1 and env.EnemyTrackerNote1:IsShown(), "no description note")
+        eq(ET:NearbyCount(), 1, "still in the nearby list")
+        H.noErrors(env)
+    end },
+
+    { "everyone: an ally alerts too", function()
+        local ET, env = H.boot({ player = ALLIANCE_ME })
+        ET.db.settings.alertMode = "all"
+        ET:AddEnemy("Anna Lightway")
+        H.target(env, player("Anna Lightway", "Alliance"))
+        ok(env.EnemyTrackerAlert1:IsShown())
+        eq(#env._state.sounds, 1)
+    end },
+
+    { "nobody: not even an enemy alerts, but is still tracked", function()
+        local ET, env = H.boot({ player = ALLIANCE_ME })
+        ET.db.settings.alertMode = "none"
+        ET:AddEnemy("Gorbash Grimfang")
+        H.target(env, player("Gorbash Grimfang", "Horde"))
+        no(env.EnemyTrackerAlert1:IsShown(), "no toast")
+        eq(#env._state.sounds, 0, "no sound")
+        no(H.chatContains(env, ET.L.ALERT_TITLE), "no chat alert")
+        eq(ET:NearbyCount(), 1)
+        eq(ET:GetEnemy("Gorbash Grimfang").stats.detections, 1)
+    end },
+
+    { "a player of unknown faction the client calls friendly stays quiet", function()
+        local ET, env = H.boot({ player = ALLIANCE_ME })
+        ET:AddEnemy("Anna Lightway")
+        local p = player("Anna Lightway", H.mock.SECRET)
+        p.friendly = true
+        H.target(env, p)
+        no(env.EnemyTrackerAlert1:IsShown())
+        eq(#env._state.sounds, 0)
+    end },
+
+    { "a hidden friendliness counts as unknown and alerts", function()
+        local ET, env = H.boot({ player = ALLIANCE_ME })
+        ET:AddEnemy("Gorbash Grimfang")
+        local p = player("Gorbash Grimfang", nil)
+        p.secretFriend = true
+        H.target(env, p)
+        ok(env.EnemyTrackerAlert1:IsShown())
+        H.noErrors(env)
+    end },
+
+    { "an invalid saved alert mode falls back to enemies only", function()
+        local ET, env = H.boot({ player = ALLIANCE_ME, savedDB = { schemaVersion = 2, settings = { alertMode = "bogus" } } })
+        eq(ET.db.settings.alertMode, "enemies")
+    end },
 }
