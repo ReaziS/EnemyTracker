@@ -7,6 +7,7 @@
 ## IconTexture: Interface\Icons\INV_Misc_Bone_HumanSkull_01
 
 Core.lua
+Style.lua
 Locale.lua
 Database.lua
 Sound.lua
