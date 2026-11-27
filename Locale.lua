@@ -106,6 +106,9 @@ local L = {
     OPT_VOLUME_NOTE = "WoW cannot set the volume of a single sound. The alert plays on the selected channel; " ..
         "its loudness follows that channel's volume in Game Menu > System > Sound (currently %d%%).",
     OPT_COUNTER = "Show nearby counter",
+    OPT_FLAGS = "Red flag next to blacklisted players in chat and tooltips",
+    FLAG_TOOLTIP = "Enemy Tracker: in your blacklist",
+    FLAG_NO_DESCRIPTION = "In your blacklist (no description).",
     OPT_MINIMAP = "Show minimap button",
     OPT_COMBATLOG = "Use combat log as a detection source",
     OPT_GROUP = "Use group members and their targets as a detection source",
@@ -247,6 +250,9 @@ if GetLocale() == "ruRU" then
         OPT_VOLUME_NOTE = "WoW не позволяет задать громкость отдельного звука. Уведомление играет в выбранном " ..
             "канале; громкость определяется громкостью канала в Меню > Система > Звук (сейчас %d%%).",
         OPT_COUNTER = "Показывать счётчик врагов рядом",
+        OPT_FLAGS = "Красный флажок у игроков из списка в чате и подсказках",
+        FLAG_TOOLTIP = "Enemy Tracker: в вашем чёрном списке",
+        FLAG_NO_DESCRIPTION = "В вашем чёрном списке (без описания).",
         OPT_MINIMAP = "Показывать кнопку у мини-карты",
         OPT_COMBATLOG = "Использовать журнал боя как источник обнаружения",
         OPT_GROUP = "Использовать членов группы и их цели как источник обнаружения",

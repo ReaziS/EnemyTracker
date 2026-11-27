@@ -152,6 +152,7 @@ local function build()
     y = y - 36
 
     checkbox(panel, 16, y, L.OPT_COUNTER, "showCounter"); y = y - 28
+    checkbox(panel, 16, y, L.OPT_FLAGS, "showFlags"); y = y - 28
     checkbox(panel, 16, y, L.OPT_MINIMAP, "showMinimap"); y = y - 28
     local clCheck = checkbox(panel, 16, y, L.OPT_COMBATLOG, "useCombatLog"); y = y - 28
     addRefresher(function()

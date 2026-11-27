@@ -14,6 +14,7 @@ Detection.lua
 Stats.lua
 Notifications.lua
 DescriptionNote.lua
+Flags.lua
 Counter.lua
 Dashboard.lua
 MinimapButton.lua

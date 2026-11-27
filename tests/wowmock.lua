@@ -321,6 +321,30 @@ function M.new(opts)
 
     env.SlashCmdList = {}
 
+    -- Chat filters and frames
+    s.chatFilters = {}
+    env.ChatFrame_AddMessageEventFilter = function(event, fn)
+        local list = s.chatFilters[event] or {}
+        list[#list + 1] = fn
+        s.chatFilters[event] = list
+    end
+    env.ChatFrame1 = env.DEFAULT_CHAT_FRAME
+    env.CHAT_FRAMES = { "ChatFrame1" }
+    env.FCF_OpenTemporaryWindow = function() end
+
+    -- Tooltips (retail TooltipDataProcessor, present on Forever)
+    s.tooltipPostCalls = {}
+    env.Enum = { TooltipDataType = { Unit = 2 } }
+    env.TooltipDataProcessor = {
+        AddTooltipPostCall = function(kind, fn)
+            local list = s.tooltipPostCalls[kind] or {}
+            list[#list + 1] = fn
+            s.tooltipPostCalls[kind] = list
+        end,
+    }
+    env.GameTooltip.GetUnit = function() local u = s.tooltipUnit; return u and "x", u end
+    env.GameTooltip.HasScript = function() return true end
+
     return env
 end
 
@@ -366,6 +390,27 @@ function M.acceptPopup(env)
     assert(p, "no popup shown")
     local dialog = env.StaticPopupDialogs[p.which]
     dialog.OnAccept(nil, p.data)
+end
+
+-- Runs a chat event through the registered filters, like ChatFrame does.
+-- Returns the message as it would be displayed, or nil if filtered out.
+function M.chatMessage(env, event, msg, author, ...)
+    local args = { msg, author, ... }
+    for _, fn in ipairs(env._state.chatFilters[event] or {}) do
+        local r = { fn(env.ChatFrame1, event, unpack(args, 1, table.maxn(args))) }
+        if r[1] then return nil end
+        if #r > 1 then args = { select(2, unpack(r, 1, table.maxn(r))) } end
+    end
+    return args[1]
+end
+
+-- Hovers a unit: builds GameTooltip for it and returns the added lines.
+function M.hoverUnit(env, unit)
+    local s = env._state
+    s.tooltipUnit = unit
+    env.GameTooltip._lines = {}
+    for _, fn in ipairs(s.tooltipPostCalls[2] or {}) do fn(env.GameTooltip, {}) end
+    return env.GameTooltip._lines
 end
 
 -- Presses "No" on the most recent StaticPopup.

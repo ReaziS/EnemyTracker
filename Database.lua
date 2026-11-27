@@ -41,6 +41,7 @@ local DEFAULT_SETTINGS = {
     useGroupTargets = true,
     locked = true,
     debug = false,
+    showFlags = true,           -- red flag in chat and unit tooltips
     noteEnabled = true,         -- corner note with the player's description
     noteCorner = "BOTTOMRIGHT",
     noteScale = 1.0,
