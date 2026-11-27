@@ -2,7 +2,7 @@
 
 Addon for **WoW Forever (Camelot, interface 16001)**. You keep a personal blacklist of players. The addon detects them nearby using only data the client already provides, alerts you with a RareScanner-style toast and a sound, counts how many are nearby right now, and keeps kill statistics for each player. A minimap button opens the dashboard.
 
-**Status:** I wrote this from the spec and checked it only against a mock WoW API (102 automated checks) and a Lua 5.1 compile pass. **It has not been run in the WoW Forever client yet.** The spec says a feature isn't done until it's verified in the game, so use the in-game checklist below.
+**Status (v0.2.0):** checked against a mock of the Forever client API (`tests/`, run under LuaJIT). **Not yet verified in the WoW Forever client.** The spec says a feature isn't done until it's verified in the game, so use the in-game checklist below. Upgrading from v0.1.1 converts the saved data to schema 2; v0.1.1 cannot read it back.
 
 ## Install
 
@@ -50,7 +50,7 @@ Settings live under Esc > Options > AddOns > Enemy Tracker. Changes apply immedi
 | Dashboard (§9) | Opened from the minimap button (drag it around the minimap edge). Search by name, add by name or target, sortable columns, a virtual-scroll list (fine with hundreds of entries), clear stats or remove with confirmation, and a scanning toggle. Esc closes it |
 | Modules (§11) | `Core` (events, utilities), `Database`, `Detection`, `Stats`, `Sound`, `Notifications`, `Counter`, `Dashboard`, `MinimapButton`, `Options`, `ContextMenu`, `Slash`, `Locale` (English and Russian). All event handlers are wrapped in `pcall`, so one error doesn't break the addon |
 
-## Forever restrictions handling (v0.1.1)
+## Forever restrictions handling
 
 Forever reportedly applies Retail's Midnight addon restrictions. That's a third-party report of a Blizzard developer-Discord remark, not an official post. The addon is defensive about this:
 
