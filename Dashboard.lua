@@ -74,7 +74,10 @@ local function updateRows()
             row.cols.name:SetText(label)
             row.cols.killedMe:SetText(e.stats.killedMe)
             row.cols.iKilled:SetText(e.stats.iKilled)
-            local seen = ET.nearby[item.key] and ("|cff40ff40" .. L.JUST_NOW .. "|r") or ET.FormatAgo(e.lastSeen)
+            -- Own faction: never alerted, so "last seen" means little; show a dash.
+            local mine = ET.UnitFaction("player")
+            local seen = (mine and e.faction == mine) and "|cff999999-|r"
+                or ET.nearby[item.key] and ("|cff40ff40" .. L.JUST_NOW .. "|r") or ET.FormatAgo(e.lastSeen)
             row.cols.lastSeen:SetText(seen)
             row.cols.addedAt:SetText(item.shared and ("|cff6fa8dc" .. L.FROM_GROUP .. "|r") or ET.FormatDate(e.addedAt))
             row.cols.detections:SetText(e.stats.detections)
@@ -241,9 +244,12 @@ local function create()
             local e = self.key and ET:GetTracked(self.key)
             if not e then return end
             local desc = ET:DescriptionOf(self.key)
-            if desc == "" and not e.shared then return end
+            local mine = ET.UnitFaction("player")
+            local own = mine ~= nil and e.faction == mine
+            if desc == "" and not e.shared and not own then return end
             GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
             GameTooltip:AddLine(e.name, 1, 0.3, 0.3)
+            if own then GameTooltip:AddLine(L.OWN_FACTION, 0.6, 0.6, 0.6, true) end
             if desc ~= "" then GameTooltip:AddLine(ET.EscapeText(desc), 1, 1, 1, true) end
             if e.shared then
                 GameTooltip:AddLine(string.format(L.SHARED_BY, e.by or "?"), 0.44, 0.66, 0.86)

@@ -71,4 +71,36 @@ return {
         no(ET:GetEnemy("Anna Lightway").faction, "not stored")
         H.noErrors(env)
     end },
+
+    { "adding from the target or a unit menu remembers the faction", function()
+        local ET, env = H.boot()
+        H.target(env, { name = "Petr", surname = "Ivanov", faction = "Alliance", guid = "Player-petr" })
+        ET:AddTarget()
+        eq(ET.db.enemies["petr ivanov"].faction, "Alliance")
+        H.target(env, { name = "Vera", surname = "Orlova", faction = "Horde", guid = "Player-vera" })
+        local added = false
+        for _, e in ipairs(H.mock.openMenu(env, "MENU_UNIT_TARGET", { unit = "target" })) do
+            if e.label == ET.L.MENU_ADD then e.fn() added = true end
+        end
+        ok(added, "menu offers to add")
+        eq(ET.db.enemies["vera orlova"].faction, "Horde")
+        ET:AddEnemy("Olga Smirnova", true, "Neutral")
+        eq(ET.db.enemies["olga smirnova"].faction, nil, "only real factions are kept")
+    end },
+
+    { "the dashboard shows a dash in last seen for your own faction", function()
+        local ET, env = H.boot()
+        ET:AddEnemy("Petr Ivanov", true, "Alliance")
+        ET:AddEnemy("Gorbash Grimfang", true, "Horde")
+        ET:AddEnemy("Olga Smirnova", true)
+        ET:ShowDashboard()
+        local seen = {}
+        for i = 1, 3 do
+            local row = env["EnemyTrackerDashboardRow" .. i]
+            seen[row.key] = row.cols.lastSeen:GetText()
+        end
+        eq(seen["petr ivanov"], "|cff999999-|r")
+        eq(seen["gorbash grimfang"], ET.L.NEVER)
+        eq(seen["olga smirnova"], ET.L.NEVER, "unknown faction still shows the time")
+    end },
 }

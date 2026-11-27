@@ -212,7 +212,8 @@ function ET:AddEnemyManual(name)
     return "pending"
 end
 
-function ET:AddEnemy(name, quiet)
+-- faction: "Alliance"/"Horde" when known (adding from a unit), else nil.
+function ET:AddEnemy(name, quiet, faction)
     local key
     name, key = self:CheckNewName(name, quiet)
     if not name then return false end
@@ -223,6 +224,7 @@ function ET:AddEnemy(name, quiet)
         addedAt = time(),
         lastSeen = 0,
         stats = { killedMe = 0, iKilled = 0, detections = 0 },
+        faction = (faction == "Alliance" or faction == "Horde") and faction or nil,
     }
     self.db.enemies[key] = entry
     if not quiet then self:Print(string.format(L.ADDED, entry.name)) end
@@ -243,7 +245,7 @@ function ET:AddTarget()
         self:Print(L.TARGET_NOT_PLAYER)
         return false
     end
-    return self:AddEnemy(name)
+    return self:AddEnemy(name, false, ET.UnitFaction("target"))
 end
 
 function ET:RemoveEnemy(name)

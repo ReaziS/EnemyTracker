@@ -31,7 +31,8 @@ local function build(_, rootDescription, contextData)
     if ET:GetEnemy(name) then
         rootDescription:CreateButton(L.MENU_REMOVE, function() ET:ConfirmRemove(name) end)
     else
-        rootDescription:CreateButton(L.MENU_ADD, function() ET:AddEnemy(name) end)
+        local faction = contextData.unit and ET.UnitFaction(contextData.unit)
+        rootDescription:CreateButton(L.MENU_ADD, function() ET:AddEnemy(name, false, faction) end)
     end
 end
 

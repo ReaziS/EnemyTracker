@@ -18,6 +18,7 @@ local EN = {
 
     NEVER = "never",
     JUST_NOW = "just now",
+    OWN_FACTION = "Your faction: no alerts, \"last seen\" is not shown.",
     MIN_AGO = "%d min ago",
     HOURS_AGO = "%d h ago",
 
@@ -208,6 +209,7 @@ local RU = {
 
     NEVER = "никогда",
     JUST_NOW = "только что",
+    OWN_FACTION = "Ваша фракция: без уведомлений, «замечен» не показывается.",
     MIN_AGO = "%d мин назад",
     HOURS_AGO = "%d ч назад",
 
