@@ -103,12 +103,13 @@ local L = {
     OPT_COUNTER = "Show nearby counter",
     OPT_MINIMAP = "Show minimap button",
     OPT_COMBATLOG = "Use combat log as a detection source",
-    OPT_GROUP = "Use group members' targets as a detection source",
+    OPT_GROUP = "Use group members and their targets as a detection source",
     OPT_LOCK = "Lock frames (uncheck to move alerts and counter)",
     OPT_RESETPOS = "Reset positions",
     OPT_DEBUG = "Diagnostic logging",
-    OPT_DETECTION_NOTE = "Detection uses nameplates (enable enemy/friendly nameplates), target, mouseover, " ..
-        "group targets and nearby combat log events. Players the client does not report cannot be detected.",
+    OPT_DETECTION_NOTE = "Detection uses nameplates (enable enemy/friendly nameplates), target, mouseover, focus, " ..
+        "group members and their targets, and nearby combat log events. Players the client does not report " ..
+        "cannot be detected.",
 
     CHANNEL_Master = "Master",
     CHANNEL_SFX = "Effects",
@@ -227,12 +228,12 @@ if GetLocale() == "ruRU" then
         OPT_COUNTER = "Показывать счётчик врагов рядом",
         OPT_MINIMAP = "Показывать кнопку у мини-карты",
         OPT_COMBATLOG = "Использовать журнал боя как источник обнаружения",
-        OPT_GROUP = "Использовать цели членов группы как источник обнаружения",
+        OPT_GROUP = "Использовать членов группы и их цели как источник обнаружения",
         OPT_LOCK = "Заблокировать рамки (снимите, чтобы перемещать)",
         OPT_RESETPOS = "Сбросить положение",
         OPT_DEBUG = "Диагностический лог",
-        OPT_DETECTION_NOTE = "Источники: таблички имён (включите их), цель, mouseover, цели группы и журнал боя " ..
-            "поблизости. Игроков, о которых клиент не сообщает, обнаружить нельзя.",
+        OPT_DETECTION_NOTE = "Источники: таблички имён (включите их), цель, mouseover, фокус, члены группы и их " ..
+            "цели, журнал боя поблизости. Игроков, о которых клиент не сообщает, обнаружить нельзя.",
 
         CHANNEL_Master = "Общий",
         CHANNEL_SFX = "Эффекты",

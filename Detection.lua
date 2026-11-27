@@ -1,11 +1,13 @@
 -- Enemy Tracker: detection of blacklisted players through client-provided units.
--- Sources: nameplates, target, mouseover, focus, target-of-target, group
--- members' targets and nearby combat log events. No hidden data, no world scan.
+-- Sources: nameplates, target, mouseover, focus, target-of-target,
+-- focus-target, group members and their targets, and nearby combat log
+-- events. No hidden data, no world scan.
 local _, ET = ...
 
 local LOST_AFTER = 10      -- seconds without any source before "no longer detected"
 local TICK = 1.0           -- periodic re-check interval (no OnUpdate scanning)
 local MAX_PLATES = 40
+local PLATE_RECHECK = 0.3  -- NAME_PLATE_UNIT_ADDED can fire before the unit is filled in
 
 local nearby = {}          -- key -> { key, name, firstSeen, lastSeen, source }
 ET.nearby = nearby
@@ -13,10 +15,18 @@ ET.nearby = nearby
 local GetTime = GetTime
 
 -- Pre-built unit token lists so the ticker allocates nothing.
-local plateUnits, partyTargets, raidTargets = {}, {}, {}
+local plateUnits = {}
+local partyUnits, partyTargets, raidUnits, raidTargets = {}, {}, {}, {}
+local targetOf = {}        -- "party1" -> "party1target", for UNIT_TARGET
 for i = 1, MAX_PLATES do plateUnits[i] = "nameplate" .. i end
-for i = 1, 4 do partyTargets[i] = "party" .. i .. "target" end
-for i = 1, 40 do raidTargets[i] = "raid" .. i .. "target" end
+for i = 1, 4 do
+    partyUnits[i], partyTargets[i] = "party" .. i, "party" .. i .. "target"
+    targetOf[partyUnits[i]] = partyTargets[i]
+end
+for i = 1, 40 do
+    raidUnits[i], raidTargets[i] = "raid" .. i, "raid" .. i .. "target"
+    targetOf[raidUnits[i]] = raidTargets[i]
+end
 
 local function scanning()
     return ET.db and ET.db.settings.scanEnabled
@@ -99,19 +109,28 @@ function ET:ScanAll()
     self:ObserveUnit("mouseover", "mouseover")
     self:ObserveUnit("focus", "focus")
     self:ObserveUnit("targettarget", "target")
-    -- Group members' targets, only if the client can actually see that unit.
+    self:ObserveUnit("focustarget", "focus")
+    -- Group members and their targets, only if the client can actually see
+    -- that unit (a raid member across the zone is not "nearby").
     if self.db.settings.useGroupTargets then
-        local list, n
-        if IsInRaid and IsInRaid() then list, n = raidTargets, GetNumGroupMembers()
-        elseif GetNumGroupMembers and GetNumGroupMembers() > 0 then list, n = partyTargets, 4 end
-        if list then
-            for i = 1, math.min(n, #list) do
-                local u = list[i]
-                local visible = UnitIsVisible(u)
-                if not ET.IsSecret(visible) and visible then self:ObserveUnit(u, "group") end
+        local members, targets, n
+        if IsInRaid and IsInRaid() then
+            members, targets, n = raidUnits, raidTargets, GetNumGroupMembers()
+        elseif GetNumGroupMembers and GetNumGroupMembers() > 0 then
+            members, targets, n = partyUnits, partyTargets, 4
+        end
+        if members then
+            for i = 1, math.min(n, #members) do
+                self:ObserveVisibleUnit(members[i], "group")
+                self:ObserveVisibleUnit(targets[i], "group")
             end
         end
     end
+end
+
+function ET:ObserveVisibleUnit(unit, source)
+    local visible = UnitIsVisible(unit)
+    if not ET.IsSecret(visible) and visible then self:ObserveUnit(unit, source) end
 end
 
 -- Drops players not seen by any source for LOST_AFTER seconds.
@@ -162,7 +181,15 @@ end
 -------------------------------------------------------------------------------
 -- Events + timer
 -------------------------------------------------------------------------------
-ET:RegisterEvent("NAME_PLATE_UNIT_ADDED", function(_, unit) ET:ObserveUnit(unit, "nameplate") end)
+ET:RegisterEvent("NAME_PLATE_UNIT_ADDED", function(_, unit)
+    ET:ObserveUnit(unit, "nameplate")
+    C_Timer.After(PLATE_RECHECK, function() ET:ObserveUnit(unit, "nameplate") end)
+end)
+-- A group member changed target: check it now instead of on the next tick.
+ET:RegisterEvent("UNIT_TARGET", function(_, unit)
+    local t = targetOf[unit]
+    if t and ET.db and ET.db.settings.useGroupTargets then ET:ObserveVisibleUnit(t, "group") end
+end)
 ET:RegisterEvent("PLAYER_TARGET_CHANGED", function() ET:ObserveUnit("target", "target") end)
 ET:RegisterEvent("UPDATE_MOUSEOVER_UNIT", function() ET:ObserveUnit("mouseover", "mouseover") end)
 
