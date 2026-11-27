@@ -16,6 +16,8 @@
 --   B<requester>              I am answering <requester>; others stand down
 --   R<at>\t<del>\t<fac>\t<by>\t<name>\t<desc>   one record
 --   E<requester>\t<digest>    end of my answer; my digest after it
+--   W                         anyone here? (sent when joining someone's group)
+--   H                         here (answer to W)
 -- A body longer than one message is split into "P<id>:<i>:<n>:<chunk>" parts;
 -- a body that fits is sent as "1<body>".
 --
@@ -37,6 +39,8 @@ local REQUEST_COOLDOWN = 60
 local BUCKET_SIZE, BUCKET_RATE = 60, 4  -- per sender: burst, messages per second
 local MUTE_FOR = 300
 local PART_TTL = 30
+local PROBE_TIMEOUT = 15                -- seconds to wait for a member when joining
+local PING_COOLDOWN = 10
 local RETRY_RESULTS = { [3] = true, [8] = true } -- AddonMessageThrottle, ChannelThrottle
 
 ET.GROUP_MAX_RECORDS = MAX_RECORDS
@@ -231,6 +235,21 @@ end
 
 local handlers = {}
 
+-- Messages that only a member of an existing group sends: hearing one
+-- confirms a group we are joining.
+local CONFIRMS = { H = true, R = true, B = true, E = true }
+
+handlers.W = function(id, sender)
+    local rt = runtime[id]
+    rt.pinged = rt.pinged or {}
+    local last = rt.pinged[sender]
+    if last and GetTime() - last < PING_COOLDOWN then return end
+    rt.pinged[sender] = GetTime()
+    C_Timer.After(math.random(), function() send(id, "H") end)
+end
+
+handlers.H = function() end
+
 handlers.Q = function(id, sender, body)
     local rt = runtime[id]
     if body:sub(2) == ET:GroupDigest(id) then return end
@@ -336,8 +355,13 @@ function ET:OnGroupMessage(prefix, text, channel, sender, target, _, localID, ch
     if not s then return end
     local body = collect(s, text)
     if not body or body == "" then return end
-    local handler = handlers[body:sub(1, 1)]
-    if handler then handler(id, ET.NormalizeName(sender), body) end
+    local kind = body:sub(1, 1)
+    local handler = handlers[kind]
+    if not handler then return end
+    if CONFIRMS[kind] then ET:ConfirmGroup(id) end
+    -- While we are still checking the group, we have nothing to answer with.
+    if ET.db.groups[id].verified == false and (kind == "W" or kind == "Q") then return end
+    handler(id, ET.NormalizeName(sender), body)
 end
 
 -------------------------------------------------------------------------------
@@ -368,7 +392,7 @@ end)
 ET:On("GROUPS_CHANGED", function(id, what)
     if what == "join" then
         shareAll(id)
-    else
+    elseif what == "leave" then
         for i = #queue, 1, -1 do
             if queue[i].id == id then table.remove(queue, i) end
         end
@@ -378,6 +402,10 @@ end)
 ET:On("GROUP_READY", function(id)
     local rt = runtime[id]
     rt.synced, rt.pending = false, {}
+    if ET.db.groups[id].verified == false then
+        send(id, "W")
+        C_Timer.After(PROBE_TIMEOUT, function() ET:GroupNotFound(id) end)
+    end
     send(id, "Q" .. ET:GroupDigest(id))
 end)
 

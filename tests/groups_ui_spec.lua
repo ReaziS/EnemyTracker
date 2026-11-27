@@ -3,7 +3,7 @@ local H = require("harness")
 local mock = H.mock
 local eq, ok, no = H.eq, H.ok, H.no
 
-local GID = "7KQMX2PV9HRT"
+local GID = "7KQMX2PV9HRB"
 
 local function shareIvan(ET, env, desc)
     ET:MergeGroupRecord(GID, "ivan petrov", { name = "Ivan Petrov", faction = "Horde",
@@ -21,7 +21,8 @@ return {
         local id = next(ET.db.groups)
         ok(id)
         eq(env.EnemyTrackerGroupsSlot1Id:GetText(), ET.FormatGroupId(id), "ID shown for copying")
-        env.EnemyTrackerGroupsJoinBox:SetText("ET-7KQM-X2PV-9HRT")
+        mock.advance(env, 1) -- slots are ordered by join time
+        env.EnemyTrackerGroupsJoinBox:SetText("ET-7KQM-X2PV-9HRB")
         mock.click(env.EnemyTrackerGroupsJoin)
         ok(ET.db.groups[GID])
         eq(env.EnemyTrackerGroupsJoinBox:GetText(), "")
@@ -38,7 +39,7 @@ return {
         local box = env.EnemyTrackerGroupsSlot1Id
         box:SetText("ET-XXXX")
         box:RunScript("OnTextChanged", true)
-        eq(box:GetText(), "ET-7KQM-X2PV-9HRT")
+        eq(box:GetText(), "ET-7KQM-X2PV-9HRB")
     end },
 
     { "create and join are disabled when all slots are used", function()

@@ -3,7 +3,7 @@ local H = require("harness")
 local mock = H.mock
 local eq, ok, no = H.eq, H.ok, H.no
 
-local GID, GID2 = "7KQMX2PV9HRT", "AAAABBBBCCCC"
+local GID, GID2 = "7KQMX2PV9HRB", "AAAABBBBCCCG"
 
 local function unit(full, faction)
     local first, surname = full:match("^(%S+) (%S+)$")

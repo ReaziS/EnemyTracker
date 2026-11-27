@@ -3,7 +3,7 @@ local H = require("harness")
 local mock = H.mock
 local eq, ok, no = H.eq, H.ok, H.no
 
-local GID = "7KQMX2PV9HRT"
+local GID = "7KQMX2PV9HRB"
 
 local function client(name, surname)
     local ET, env = H.boot({ player = { name = name, surname = surname, faction = "Alliance", guid = "Player-" .. name } })
@@ -17,6 +17,12 @@ local function envs(...)
 end
 
 local function rec(c, key) return c.ET.db.groups[GID] and c.ET.db.groups[GID].records[key] end
+
+-- Joins c as an existing member (as if it had created the group).
+local function found(c)
+    c.ET:JoinGroup(GID)
+    c.ET.db.groups[GID].verified = nil
+end
 
 local function sentBodies(env, kind)
     local n = 0
@@ -43,7 +49,7 @@ return {
         a.ET:AddEnemy("Ivan Petrov")
         a.ET:SetDescription("Ivan Petrov", "Ganks lowbies")
         a.ET.db.enemies["ivan petrov"].stats.killedMe = 7
-        a.ET:JoinGroup(GID)
+        found(a)
         mock.mesh(envs(a, b), 2)
         b.ET:JoinGroup(GID)
         mock.mesh(envs(a, b), 20)
@@ -63,7 +69,7 @@ return {
         a.ET:AddEnemy("Ivan Petrov")
         b.ET:AddEnemy("Olga Smirnova")
         b.ET:AddEnemy("Ivan Petrov")
-        a.ET:JoinGroup(GID)
+        found(a)
         mock.mesh(envs(a, b), 2)
         b.ET:JoinGroup(GID)
         mock.mesh(envs(a, b), 30)
@@ -80,7 +86,7 @@ return {
     { "changes made while connected reach the others at once", function()
         math.randomseed(3)
         local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
-        a.ET:JoinGroup(GID) b.ET:JoinGroup(GID)
+        found(a) b.ET:JoinGroup(GID)
         mock.mesh(envs(a, b), 5)
         a.ET:AddEnemy("Olga Smirnova")
         mock.mesh(envs(a, b), 1)
@@ -96,7 +102,7 @@ return {
     { "adding a described player again keeps the description; only its author removes it", function()
         math.randomseed(4)
         local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
-        a.ET:JoinGroup(GID) b.ET:JoinGroup(GID)
+        found(a) b.ET:JoinGroup(GID)
         mock.mesh(envs(a, b), 5)
         a.ET:AddEnemy("Ivan Petrov")
         a.ET:SetDescription("Ivan Petrov", "Ganks lowbies")
@@ -115,7 +121,7 @@ return {
         math.randomseed(5)
         local a, b, c = client("Anna", "Kova"), client("Boris", "Lebed"), client("Vera", "Orlova")
         a.ET:AddEnemy("Ivan Petrov")
-        a.ET:JoinGroup(GID) b.ET:JoinGroup(GID)
+        found(a) b.ET:JoinGroup(GID)
         mock.mesh(envs(a, b), 20)
         c.ET:JoinGroup(GID)
         mock.mesh(envs(b, c), 20) -- Anna logged off
@@ -127,7 +133,7 @@ return {
         math.randomseed(6)
         local a, b, c = client("Anna", "Kova"), client("Boris", "Lebed"), client("Vera", "Orlova")
         a.ET:AddEnemy("Ivan Petrov")
-        a.ET:JoinGroup(GID) b.ET:JoinGroup(GID)
+        found(a) b.ET:JoinGroup(GID)
         mock.mesh(envs(a, b), 20)
         local answers = 0
         for _, x in ipairs({ a, b }) do
@@ -147,7 +153,7 @@ return {
         math.randomseed(7)
         local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
         a.ET:AddEnemy("Ivan Petrov")
-        a.ET:JoinGroup(GID) b.ET:JoinGroup(GID)
+        found(a) b.ET:JoinGroup(GID)
         mock.mesh(envs(a, b), 20)
         local ET2, env2 = H.reboot(b.env)
         ok(ET2.db.groups[GID].records["ivan petrov"])
@@ -157,7 +163,7 @@ return {
     { "long Cyrillic descriptions are split into messages and put back together", function()
         math.randomseed(8)
         local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
-        a.ET:JoinGroup(GID) b.ET:JoinGroup(GID)
+        found(a) b.ET:JoinGroup(GID)
         mock.mesh(envs(a, b), 5)
         a.ET:AddEnemy("Иван Петров")
         local text = string.rep("Убивает новичков. ", 12)
@@ -212,7 +218,7 @@ return {
 
     { "waits out messaging lockdown and retries throttled sends", function()
         local a = client("Anna", "Kova")
-        a.ET:JoinGroup(GID)
+        found(a)
         mock.advance(a.env, 2)
         a.env._state.addonOut = {}
         a.env._state.lockdown = true
@@ -232,14 +238,14 @@ return {
         math.randomseed(9)
         local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
         a.ET:AddEnemy("Ivan Petrov")
-        a.ET:JoinGroup(GID) b.ET:JoinGroup(GID)
+        found(a) b.ET:JoinGroup(GID)
         mock.mesh(envs(a, b), 20, { noChannelName = true })
         ok(rec(b, "ivan petrov"))
     end },
 
     { "ignores other prefixes, other channels and our own echo", function()
         local a = client("Anna", "Kova")
-        a.ET:JoinGroup(GID)
+        found(a)
         mock.advance(a.env, 2)
         local now = a.env.time()
         mock.fire(a.env, "CHAT_MSG_ADDON", "OTHER", record(now, "Ivan Petrov"), "CHANNEL", "X-Y", "", 0, 99, "Trade")
@@ -248,5 +254,28 @@ return {
         inject(a, mock.SECRET, record(now, "Ivan Petrov"))
         no(rec(a, "ivan petrov"))
         H.noErrors(a.env)
+    end },
+
+    { "joining succeeds when a member answers, even one with an empty list", function()
+        math.randomseed(10)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        found(a)
+        mock.mesh(envs(a, b), 2)
+        b.ET:JoinGroup(GID)
+        mock.mesh(envs(a, b), 30)
+        ok(b.ET.db.groups[GID], "group kept")
+        eq(b.ET.db.groups[GID].verified, nil)
+        ok(H.chatContains(b.env, b.ET.L.GROUP_JOINED:format("ET-7KQM-X2PV-9HRB")))
+        H.noErrors(a.env) H.noErrors(b.env)
+    end },
+
+    { "two people checking the same unknown ID do not confirm each other", function()
+        math.randomseed(11)
+        local a, b = client("Anna", "Kova"), client("Boris", "Lebed")
+        a.ET:JoinGroup(GID)
+        b.ET:JoinGroup(GID)
+        mock.mesh(envs(a, b), 30)
+        no(a.ET.db.groups[GID])
+        no(b.ET.db.groups[GID])
     end },
 }
