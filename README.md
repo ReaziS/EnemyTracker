@@ -131,6 +131,15 @@ luajit tests/run_tests.lua detection  # only tests whose name contains "detectio
 
 The mock can't prove rendering, real secure-template behaviour or real event payloads.
 
+## Releases
+
+1. Raise `## Version:` in `EnemyTracker.toc` and `ET.version` in `Core.lua`, and add a `## <version>` section to `CHANGELOG.md` (a test checks they agree).
+2. Commit, then tag and push: `git tag v0.4.0 && git push origin v0.4.0`.
+3. `.github/workflows/release.yml` runs the tests, builds `EnemyTracker-<version>.zip` with `tools/package.sh` (only the files the game loads, in one `EnemyTracker/` folder), and publishes a GitHub release with that version's changelog.
+4. If the repository has the secret `CF_API_KEY` (a CurseForge API token) and the variable `CF_PROJECT_ID`, the same zip is uploaded to CurseForge for the game version matching `## Interface:` (16001 → 1.60.1, Forever). The CurseForge app then offers the update to everyone who installed the addon.
+
+The CurseForge page text and avatar are in `docs/curseforge/` (`tools/make_avatar.ps1` redraws the avatar).
+
 ## In-game acceptance checklist (§14)
 
 1. `/reload` with an empty blacklist, then with a big one: no Lua errors (turn on `/console scriptErrors 1`).

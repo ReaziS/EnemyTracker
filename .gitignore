@@ -16,3 +16,6 @@ desktop.ini
 
 # Release archives
 *.zip
+
+# Release builds
+dist/
