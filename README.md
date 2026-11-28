@@ -6,6 +6,8 @@ Addon for **WoW Forever (Camelot, interface 16001)**. You keep a personal blackl
 
 ## Install
 
+From CurseForge (Forever flavor), or manually:
+
 Copy the `EnemyTracker/` folder into `World of Warcraft/_forever_/Interface/AddOns/` (or whichever folder your Forever client uses for AddOns). Then enable it on the character select screen.
 
 Turn on **enemy nameplates** (`V`, or Options > Interface > Names). Nameplates are the main detection source.
