@@ -1,8 +1,11 @@
 ## Interface: 16001
 ## Title: Enemy Tracker
-## Notes: Personal blacklist of players: nearby detection, RareScanner-style alerts, kill statistics.
-## Notes-ruRU: Личный чёрный список игроков: обнаружение поблизости, уведомления в стиле RareScanner, статистика убийств.
+## Notes: Personal blacklist of players: warns when they are nearby, keeps notes on them, shares lists with friends.
+## Notes-ruRU: Личный чёрный список игроков: предупреждает, когда они рядом, хранит заметки о них, делится списками с друзьями.
 ## Version: 0.3.0
+## Author: ReaziS
+## X-License: MIT
+## X-Website: https://github.com/ReaziS/EnemyTracker
 ## SavedVariables: EnemyTrackerDB
 ## IconTexture: Interface\Icons\INV_Misc_Bone_HumanSkull_01
 

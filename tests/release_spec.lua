@@ -33,4 +33,7 @@ return {
         end
     end },
 
+    { "the .toc notes do not name other addons", function()
+        ok(not read("EnemyTracker.toc"):find("RareScanner", 1, true))
+    end },
 }
