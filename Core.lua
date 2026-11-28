@@ -3,7 +3,7 @@ local ADDON_NAME, ET = ...
 _G.EnemyTracker = ET -- exposed for debugging (/dump EnemyTracker)
 
 ET.name = ADDON_NAME
-ET.version = "0.3.0"
+ET.version = "0.4.0"
 
 -------------------------------------------------------------------------------
 -- Game events

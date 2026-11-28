@@ -2,7 +2,7 @@
 
 Addon for **WoW Forever (Camelot, interface 16001)**. You keep a personal blacklist of players. The addon detects them nearby using only data the client already provides, alerts you with a RareScanner-style toast and a sound, counts how many are nearby right now, and keeps kill statistics for each player. A minimap button opens the dashboard. Shared groups let friends pool their lists without any server.
 
-**Status (v0.3.0):** checked against a mock of the Forever client API (`tests/`, run under LuaJIT). **Not yet verified in the WoW Forever client.** The spec says a feature isn't done until it's verified in the game, so use the in-game checklist below. Upgrading from v0.1.1 converts the saved data to schema 2; v0.1.1 cannot read it back.
+**Status (v0.4.0):** checked against a mock of the Forever client API (`tests/`, run under LuaJIT). **Not yet verified in the WoW Forever client.** The spec says a feature isn't done until it's verified in the game, so use the in-game checklist below. Upgrading from v0.1.1 converts the saved data to schema 2; v0.1.1 cannot read it back.
 
 ## Install
 
