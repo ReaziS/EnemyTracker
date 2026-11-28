@@ -8,7 +8,7 @@ Paste into the project settings on CurseForge. Not part of the addon.
 - **Game version / flavor:** 1.60.1, Forever
 - **License:** MIT
 - **Source:** https://github.com/ReaziS/EnemyTracker
-- **Avatar:** `docs/curseforge/avatar.png` (400×400, made by `tools/make_avatar.ps1`)
+- **Avatar:** `docs/curseforge/avatar.png` (400×400, the "ET" monogram, made by `tools/make_avatar.ps1`)
 
 ---
 
